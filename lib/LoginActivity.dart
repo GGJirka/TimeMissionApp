@@ -89,6 +89,7 @@ class _LoginState extends State<LoginStateful> {
   }
 
   initUser() async{
+
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     setState(() {
       user = sharedPreferences.getString('username');
@@ -109,16 +110,14 @@ class _LoginState extends State<LoginStateful> {
     print(requestResponse.body);
 
     List data  = json.decode(requestResponse.body);
-    projects.add(new ListItem(date: "test", time: "", project: "", hour: ""
-        ,workType: "", workDes: "", note: "test"));
-
-      if (data != null) {
-        for (int i = 0; i < data.length; i++) {
-         projects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['hours'].toString(), project: data[i]['hours'].toString(), hour: data[i]['hours'].toString()
-         ,workType: data[i]['hours'].toString(), workDes: data[i]['hours'].toString(), note: data[i]['hours'].toString()));
-         //print(data[i]['hours']);
-        }
+    if (data != null) {
+      for (int i = 0; i < data.length; i++) {
+        setState(() {
+          projects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['dateFrom'].toString(),timeTo: data[i]['dateTo'].toString(), project: data[i]['projectName'], hour: data[i]['hours'].toString()
+              ,workType: data[i]['hours'].toString(), workDes: data[i]['hours'].toString(), note: data[i]['hours'].toString()));
+        });
       }
+    }
   }
 
   logout() async{
@@ -152,34 +151,60 @@ class _LoginState extends State<LoginStateful> {
       body: new Padding(padding: new EdgeInsets.all(16.0),
         child: new ListView(
           children: projects.map((ListItem item){
-            return new Row(
+            return new Column(
               children: <Widget>[
-                new Text("test"),
-                /*new Text(item.time),
-                new Text(item.project),
-                new Text(item.hour),
-                new Text(item.workType),
-                new Text(item.workDes),
-                new Text(item.note),*/
+                new Row(
+                  children: <Widget>[
+                    new Text(item.date),
+                    new Text(" hours"),
+                  ],
+                ),
+                new Row(
+                  children: <Widget>[
+                    new Text("Project: "),
+                    new Text(item.project),
+                  ],
+                ),
+                new Row(
+                  children: <Widget>[
+                    new Text("Date from: "),
+                    new Text(item.time),
+                  ],
+                ),
+                new Row(
+                  children: <Widget>[
+                    new Text("Date to: "),
+                    new Text(item.timeTo),
+                  ],
+                ),
+                new Divider(
+                  height: 10.0, color: Colors.white,
+                )
               ],
             );
           }).toList(),
         ),
       ),
+        floatingActionButton: new FloatingActionButton(
+          tooltip: 'Add new weight entry',
+          child: new Icon(Icons.add),
+        ),
       );
 
   }
 }
 
+
 class ListItem{
   String date;
   String time;
+  String timeTo;
   String project;
   String hour;
   String workType;
   String workDes;
   String note;
 
-  ListItem({this.date, this.time, this.project, this.hour, this.workType, this.workDes, this.note});
+  ListItem({this.date, this.time, this.timeTo, this.project, this.hour, this.workType, this.workDes, this.note});
 }
 
