@@ -26,7 +26,7 @@ class LoginActivity extends StatelessWidget{
 
   /*Save user to preferences and does auto login next time*/
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
@@ -56,6 +56,7 @@ class _LoginState extends State<LoginStateful> {
   String cookie;
 
   List<ListItem> projects = new List();
+
   _LoginState({this.cookie});
 
   void changeChecked(bool checked){
@@ -89,7 +90,6 @@ class _LoginState extends State<LoginStateful> {
   }
 
   initUser() async{
-
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     setState(() {
       user = sharedPreferences.getString('username');
@@ -104,14 +104,36 @@ class _LoginState extends State<LoginStateful> {
       }
     });
     print("COOKIE: " + cookie);
-    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"2018-05-14","dateTo":"2018-05-20","userId":205}'
+
+    var day = DateTime.now();
+    int monday = 7 - day.weekday;
+    int friday = 5 - day.weekday;
+    String month;
+
+    if(day.month<10){
+      month = "0"+day.month.toString();
+    }else{
+      month = day.month.toString();
+    }
+
+
+    String thisMonday = day.year.toString()+"-"+month+"-"+(day.day - monday).toString();
+    String thisFriday = day.year.toString()+"-"+month+"-"+(day.day + friday).toString();
+    print(thisMonday);
+    print(thisFriday);
+    List<String> makeDate = new List();
+    makeDate.add(day.year.toString());
+
+
+
+    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$thisMonday","dateTo":"$thisFriday","userId":205}'
         ,headers: {"cookie" : cookie});
 
     print(requestResponse.body);
 
     List data  = json.decode(requestResponse.body);
     if (data != null) {
-      for (int i = 0; i < data.length; i++) {
+      for (int i = data.length-1; i > 0; i--) {
         setState(() {
           projects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['dateFrom'].toString(),timeTo: data[i]['dateTo'].toString(), project: data[i]['projectName'], hour: data[i]['hours'].toString()
               ,workType: data[i]['hours'].toString(), workDes: data[i]['hours'].toString(), note: data[i]['hours'].toString()));
@@ -134,7 +156,6 @@ class _LoginState extends State<LoginStateful> {
         new MaterialPageRoute(builder: (context) =>
         new SettingsHome()));
   }
-
   @override
   Widget build(BuildContext context){
 
@@ -148,49 +169,49 @@ class _LoginState extends State<LoginStateful> {
           new IconButton(icon: new Icon(Icons.settings), onPressed: openSettings,)
         ],
       ),
-      body: new Padding(padding: new EdgeInsets.all(16.0),
+      body: new Padding(padding: new EdgeInsets.all(0.0),
         child: new ListView(
           children: projects.map((ListItem item){
-            return new Column(
-              children: <Widget>[
-                new Row(
+            
+            return new Card(
+              child: new Padding(padding: new EdgeInsets.all(15.0),
+                child: new Row(
                   children: <Widget>[
-                    new Text(item.date),
-                    new Text(" hours"),
+                    new Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        new Text(item.project, style: new TextStyle(color: Colors.black.withOpacity(0.6),
+                        fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.1,),
+                        new Text("Competency leader", style: new TextStyle(color: Colors.black.withOpacity(0.4),
+                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
+                        new Text(item.getDate(), style: new TextStyle(color: Colors.black.withOpacity(0.4),
+                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
+                        new Text(item.getTime(), style: new TextStyle(color: Colors.black.withOpacity(0.4),
+                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
+                      ],
+                    ),
+                    new Expanded(
+                        child: new Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: <Widget>[
+                            new Switch(value: false)
+                          ],
+                        )),
+
                   ],
                 ),
-                new Row(
-                  children: <Widget>[
-                    new Text("Project: "),
-                    new Text(item.project),
-                  ],
-                ),
-                new Row(
-                  children: <Widget>[
-                    new Text("Date from: "),
-                    new Text(item.time),
-                  ],
-                ),
-                new Row(
-                  children: <Widget>[
-                    new Text("Date to: "),
-                    new Text(item.timeTo),
-                  ],
-                ),
-                new Divider(
-                  height: 10.0, color: Colors.white,
-                )
-              ],
+              )
             );
           }).toList(),
+
         ),
       ),
         floatingActionButton: new FloatingActionButton(
-          tooltip: 'Add new weight entry',
+          tooltip: 'Add work',
           child: new Icon(Icons.add),
+
         ),
       );
-
   }
 }
 
@@ -206,5 +227,18 @@ class ListItem{
   String note;
 
   ListItem({this.date, this.time, this.timeTo, this.project, this.hour, this.workType, this.workDes, this.note});
+
+  String getDate(){
+    String year = time.substring(0,4);
+    String month = time.substring(5,7);
+    String day = time.substring(8,10);
+
+    String fDay = day + ". " + month + ". " + year;
+    return fDay;
+  }
+  String getTime(){
+    String hour = time.substring(11,16) + " - " + timeTo.substring(11,16);
+    return hour;
+  }
 }
 
