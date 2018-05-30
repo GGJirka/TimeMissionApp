@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/LoginActivity.dart';
+import 'package:flutter_app/WorkActivity.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -33,11 +33,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
   final loginController = new TextEditingController();
   final passwordController = new TextEditingController();
   LoginActivity login;
   String loginUser, loginPass;
+  bool _remember = false;
 
   @override
   void dispose(){
@@ -48,41 +48,74 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState(){
     getPreferences();
+    super.initState();
   }
 
   getPreferences() async{
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    loginUser = sharedPreferences.getString('username');
-    loginPass = sharedPreferences.getString('password');
+    if(sharedPreferences.getString('username') != "") {
+      setState(() {
+        loginUser = sharedPreferences.getString('username');
+        loginPass = sharedPreferences.getString('password');
+        loginController.text = loginUser;
+        passwordController.text = loginPass;
+        _remember = true;
+      });
+    }
+    if(loginUser != "" && loginUser != null && loginPass != "" && loginPass != null) {
+      fetchPost(loginUser, loginPass);
+    }
 
-    print(loginUser + " : " + loginPass);
-    fetchPost(loginUser, loginPass);
   }
 
   /*POST METHOD*/
-  Future<bool> fetchPost(String username, String password) async {
+  fetchPost(String username, String password) async {
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        child: new Dialog(
+          child: new Padding(
+            padding: new EdgeInsets.only(top: 20.0,bottom:  20.0,right: 0.0, left: 0.0),
+            child: new Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                new CircularProgressIndicator(),
+                new Divider(height: 20.0, color: Colors.white,),
+                new Text("Logging in", style: new TextStyle(
+                ),),
+              ],
+            ),
+          ),
+        ),
+      );
 
     var response = await http.post("https://tmtest.artin.cz/login",
-        body: {"username":username,"password" : password});
+        body: {"username":username,"password" : password, "remember-me" : "on"}, headers: {"content-type" : "application/x-www-form-urlencoded"});
 
     print('Response status: ${response.statusCode}');
     print(response.headers);
 
     var cookie = response.headers['set-cookie'];
-
+    sharedPreferences.setString("cookie", cookie);
 
     print(cookie);
 
-    if(cookie.startsWith("JSESSIONID")){
-      login = new LoginActivity(username, password,cookie);
-      login.saveLogin();
-      Navigator.push(
-          context,
-          new MaterialPageRoute(builder: (context) =>
-         login));
+    Navigator.pop(context);
+
+    if(cookie.length > 150){
+      if(_remember) {
+        SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+        sharedPreferences.setString('username', username);
+        sharedPreferences.setString('password', password);
+      }
+
+      Navigator.push(context, new MaterialPageRoute(builder: (context) =>
+         new WorkActivity(cookie: cookie,)));
     }else{
       return showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context){
         return new AlertDialog(
           content: new Text("Error with login. Enter a valid username and password"),
@@ -92,8 +125,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  _rememberChange(bool value){
+    setState(() {
+      _remember = value;
+    });
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     return new Scaffold(
       appBar: new AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -118,7 +157,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: new TextField(
                       decoration: new InputDecoration(
                         labelText: 'Username',
-
                       ),
                       controller: loginController,
                     ),
@@ -134,13 +172,24 @@ class _MyHomePageState extends State<MyHomePage> {
                     obscureText: true,
                     decoration: new InputDecoration(
                         labelText: 'Password',
+                        hintText: loginPass,
                     ),
                     controller: passwordController,
                   ),
                 ),
-
                   new Divider(
-                    height: 20.0,
+                    height: 5.0,
+                    color: Colors.white,
+                  ),
+                  new Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: <Widget>[
+                      new Checkbox(value: _remember, onChanged: (bool value){_rememberChange(value);}),
+                      new Text("  Remember me"),
+                    ],
+                  ),
+                  new Divider(
+                    height: 15.0,
                     color: Colors.white,
                   ),
                   new Column(
@@ -153,12 +202,11 @@ class _MyHomePageState extends State<MyHomePage> {
                         textColor: Colors.black,
                         elevation: 0.0,
                         onPressed: (){
-                          print(fetchPost(loginController.text, passwordController.text));
+                          fetchPost(loginController.text, passwordController.text);
                           },
                       )
                     ],
                   ),
-
                 ],
               ),
             ),
@@ -167,6 +215,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
 
     );
-
   }
+
 }

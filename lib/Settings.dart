@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsHome extends StatefulWidget{
   SettingsHome({Key key, this.title}) : super(key: key);
 
-
   final String title;
 
   @override
@@ -45,11 +44,23 @@ class SettingsHomeState extends State<SettingsHome>{
                       labelText: 'Confirm new password'
                   ),
                 ),
+                new RaisedButton(child: new Text("Logout"),onPressed: _logout)
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  _logout() async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("timeFrom","");
+    sharedPreferences.setString("username", "");
+    sharedPreferences.setString("password", "");
+    Navigator.push(
+        context,
+        new MaterialPageRoute(builder: (context) =>
+        new MyApp()));
   }
 }

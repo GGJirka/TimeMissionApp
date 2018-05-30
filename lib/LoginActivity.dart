@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/Settings.dart';
 import 'package:flutter_app/main.dart';
@@ -7,22 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 class LoginActivity extends StatelessWidget{
-  String username;
-  String password;
   String cookie;
   bool _isChecked;
 
-  LoginActivity(String user, String pass, String cook){
-    username = user;
-    password = pass;
-    cookie = cook;
-  }
-
-  saveLogin() async{
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    sharedPreferences.setString('username', username);
-    sharedPreferences.setString('password', password);
-  }
+  LoginActivity({this.cookie});
 
   /*Save user to preferences and does auto login next time*/
   @override
@@ -48,32 +36,16 @@ class LoginStateful extends StatefulWidget {
   _LoginState createState() => new _LoginState(cookie: cookie);
 }
 
+/*MAIN CLASSS*/
 class _LoginState extends State<LoginStateful> {
   bool _isChecked = false;
-  String _timeArrived = "";
-  String _timeLeft = "";
   String user = "";
   String cookie;
 
   List<ListItem> projects = new List();
+  List<ListItem> adProjects = new List();
 
   _LoginState({this.cookie});
-
-  void changeChecked(bool checked){
-    setState((){
-      var time =  new DateTime.now();
-      _isChecked = checked;
-
-      if(checked) {
-        _timeArrived = 'Time arrived: ' + time.hour.toString() + ':' + time.minute.toString() + ':' + time.second.toString();
-        saveWorkState(_isChecked, _timeArrived, _timeLeft);
-        _timeLeft = "";
-      }else{
-        _timeLeft = 'Time left: ' + time.hour.toString() + ':' + time.minute.toString() + ':' + time.second.toString();
-        saveWorkState(_isChecked, _timeArrived, _timeLeft);
-      }
-    });
-  }
 
   @override
   void initState(){
@@ -90,23 +62,7 @@ class _LoginState extends State<LoginStateful> {
   }
 
   initUser() async{
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    setState(() {
-      user = sharedPreferences.getString('username');
-      if(sharedPreferences.getBool('isInWork') != null && sharedPreferences.getString('timeArrived') != null && sharedPreferences.getString('timeLeft') != null){
-        _isChecked = sharedPreferences.getBool('isInWork');
-        _timeArrived = sharedPreferences.getString('timeArrived');
-        if(_isChecked){
-          _timeLeft = "";
-        }else {
-          _timeLeft = sharedPreferences.getString('timeLeft');
-        }
-      }
-    });
-    print("COOKIE: " + cookie);
-
     var day = DateTime.now();
-    int monday = 7 - day.weekday;
     int friday = 5 - day.weekday;
     String month;
 
@@ -116,29 +72,46 @@ class _LoginState extends State<LoginStateful> {
       month = day.month.toString();
     }
 
+    print("day:" + day.weekday.toString());
 
-    String thisMonday = day.year.toString()+"-"+month+"-"+(day.day - monday).toString();
+    String thisMonday = day.year.toString()+"-"+month+"-"+((day.day - day.weekday) + 1).toString();
     String thisFriday = day.year.toString()+"-"+month+"-"+(day.day + friday).toString();
-    print(thisMonday);
-    print(thisFriday);
     List<String> makeDate = new List();
     makeDate.add(day.year.toString());
 
-
-
-    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$thisMonday","dateTo":"$thisFriday","userId":205}'
+    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$thisMonday","dateTo":"2018-06-1","userId":205}'
         ,headers: {"cookie" : cookie});
 
     print(requestResponse.body);
 
     List data  = json.decode(requestResponse.body);
-    if (data != null) {
-      for (int i = data.length-1; i > 0; i--) {
+    if (data != null){
+      for (int i = data.length-1; i >= 0; i--) {
+        /*GET A WORK NAME FROM WORK ID AND BRANCH ID*/
+        var id = data[i]['projectId'];
+        var workId = data[i]['workTypeId'];
+        var work;
+        var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
+        print("${response2.body}");
+        List workData = json.decode(response2.body);
+
+        for(int j = 0; j < workData.length; j++){
+          if(workData[j]['id'] == workId){
+            work = workData[j]['name'];
+          }
+        }
+        /*----------------------*/
+        print("STILL WORKING $i");
         setState(() {
-          projects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['dateFrom'].toString(),timeTo: data[i]['dateTo'].toString(), project: data[i]['projectName'], hour: data[i]['hours'].toString()
-              ,workType: data[i]['hours'].toString(), workDes: data[i]['hours'].toString(), note: data[i]['hours'].toString()));
+          /*EXPORT ALL VISIBLE PROJECTS*/
+          adProjects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['dateFrom'].toString(),timeTo: data[i]['dateTo'].toString(), project: data[i]['projectName'], hour: data[i]['hours'].toString()
+              ,workType: work.toString(), added: false));
+        /*--------------------*/
         });
       }
+    }
+    for(int i=0;i<adProjects.length;i++){
+      projects.add(adProjects[i]);
     }
   }
 
@@ -156,65 +129,73 @@ class _LoginState extends State<LoginStateful> {
         new MaterialPageRoute(builder: (context) =>
         new SettingsHome()));
   }
+
   @override
   Widget build(BuildContext context){
-
     return new Scaffold(
       appBar: new AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: new Text(widget.title),
-
-        actions: <Widget>[
-          new IconButton(icon: new Icon(Icons.settings), onPressed: openSettings,)
-        ],
+        leading: new IconButton(
+        icon: new Icon(Icons.arrow_back),
+        onPressed: (){Navigator.pop(context,true);})
       ),
-      body: new Padding(padding: new EdgeInsets.all(0.0),
-        child: new ListView(
-          children: projects.map((ListItem item){
-            
-            return new Card(
-              child: new Padding(padding: new EdgeInsets.all(15.0),
-                child: new Row(
-                  children: <Widget>[
-                    new Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      body: new ListView.builder(
+          itemCount: projects.length,
+          itemBuilder: (context, index){
+            final item = projects[index];
+            if(!item.added){
+              return new Card(
+                  child: new Padding(padding: new EdgeInsets.all(15.0),
+                    child: new Row(
                       children: <Widget>[
-                        new Text(item.project, style: new TextStyle(color: Colors.black.withOpacity(0.6),
-                        fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.1,),
-                        new Text("Competency leader", style: new TextStyle(color: Colors.black.withOpacity(0.4),
-                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
-                        new Text(item.getDate(), style: new TextStyle(color: Colors.black.withOpacity(0.4),
-                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
-                        new Text(item.getTime(), style: new TextStyle(color: Colors.black.withOpacity(0.4),
-                            fontWeight: FontWeight.bold), textAlign: TextAlign.left, textScaleFactor: 1.0,),
+                        new Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            new Text(item.project, style: new TextStyle(
+                                color: Colors.black.withOpacity(0.6),
+                                fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                              textScaleFactor: 1.1,),
+                            new Text(item.workType, style: new TextStyle(
+                                color: Colors.black.withOpacity(0.4),
+                                fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                              textScaleFactor: 1.0,),
+                            new Text(item.getDate(), style: new TextStyle(
+                                color: Colors.black.withOpacity(0.4),
+                                fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                              textScaleFactor: 1.0,),
+                            new Text(item.getTime(), style: new TextStyle(
+                                color: Colors.black.withOpacity(0.4),
+                                fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                              textScaleFactor: 1.0,),
+                          ],
+                        ),
+                        new Expanded(
+                            child: new Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                new Text(item.getExactHour(), style: new TextStyle(
+                                  color: Colors.black.withOpacity(0.4),
+                                  fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.left,
+                                  textScaleFactor: 0.9,),
+                              ],
+                            )),
                       ],
                     ),
-                    new Expanded(
-                        child: new Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: <Widget>[
-                            new Switch(value: false)
-                          ],
-                        )),
-
-                  ],
-                ),
-              )
-            );
-          }).toList(),
-
-        ),
+                  )
+              );
+            }
+          },
       ),
-        floatingActionButton: new FloatingActionButton(
-          tooltip: 'Add work',
-          child: new Icon(Icons.add),
-
-        ),
       );
   }
-}
 
+  /*ADD NEW WORK BASED ON USER DEFAULT VALUES*/
+}
 
 class ListItem{
   String date;
@@ -223,12 +204,13 @@ class ListItem{
   String project;
   String hour;
   String workType;
-  String workDes;
-  String note;
+  String workTypeName;
+  bool added;
 
-  ListItem({this.date, this.time, this.timeTo, this.project, this.hour, this.workType, this.workDes, this.note});
+  ListItem({this.date, this.time, this.timeTo, this.project, this.hour, this.workType, this.added});
 
   String getDate(){
+    print("TIMEFIRST " + time);
     String year = time.substring(0,4);
     String month = time.substring(5,7);
     String day = time.substring(8,10);
@@ -236,9 +218,56 @@ class ListItem{
     String fDay = day + ". " + month + ". " + year;
     return fDay;
   }
+
   String getTime(){
+    print("TIME: " + time);
     String hour = time.substring(11,16) + " - " + timeTo.substring(11,16);
     return hour;
+  }
+
+  String setTime(){
+    print("TIME: " + time);
+    return "Started at " + time.substring(11,16);
+  }
+
+  String calculateHour(){
+    print("--------------");
+    var fhour = getTime().substring(0,2);
+    var fmin = getTime().substring(3,5);
+    var shour = getTime().substring(8,10);
+    var smin = getTime().substring(11,13);
+
+    print(getTime().substring(0,2));
+    print(getTime().substring(3,5));
+    print(getTime().substring(8,10));
+    print(getTime().substring(11,13));
+    print("--------------");
+
+    var rhour = int.parse(fhour) - int.parse(shour);
+    var rmin = int.parse(fmin) - int.parse(smin);
+
+    var dmin = 1/(60/rmin);
+    print(rhour.toString() + "." + dmin.toString().substring(2,3));
+  }
+
+  String getExactHour(){
+    print("DAATE: " + date);
+    var a = date.substring(0,1);
+    var b = date.substring(2,3);
+   // var b = 60/(date.substring(0,3) as int);
+    if(int.parse(b) != 0){
+      b = (60 ~/(int.parse(b))).toString().substring(0,2) + "m";
+    }else{
+      b = "";
+    }
+    if(int.parse(a) != 0){
+      a = a + "h";
+    }else{
+      a = "";
+    }
+    print(a +" "+ b);
+    //print(b);
+    return a +" "+ b;
   }
 }
 
