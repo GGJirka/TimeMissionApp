@@ -256,6 +256,7 @@ class _WorkPageState extends State<WorkPage> {
     sharedPreferences.setString("timeFrom","");
     sharedPreferences.setString("username", "");
     sharedPreferences.setString("password", "");
+    
     Navigator.push(
         context,
         new MaterialPageRoute(builder: (context) =>
