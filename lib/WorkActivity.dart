@@ -17,7 +17,7 @@ class WorkActivity extends StatelessWidget {
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.deepOrange,
+        primaryColor: Colors.orange[800],
       ),
       home: new WorkPage(title: 'TimeMission',cookie: cookie,),
     );
@@ -38,6 +38,7 @@ class _WorkPageState extends State<WorkPage> {
   int counter = 0;
   bool state = false;
   bool init = false;
+  String text = "You are not working at the moment!";
   String timeStarted = "";
   String buttonState = "Start working";
   String cookie;
@@ -60,7 +61,7 @@ class _WorkPageState extends State<WorkPage> {
   void openMenu(){
     Navigator.of(context).push(
         new MaterialPageRoute(builder: (context) =>
-        new LoginActivity(cookie: cookie,)));
+        new LoginStateful(title: 'Work Records',cookie: cookie,)));
   }
 
   @override
@@ -72,125 +73,153 @@ class _WorkPageState extends State<WorkPage> {
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text(widget.title),
-        actions: <Widget>[
-          new IconButton(icon: new Icon(Icons.menu), onPressed: openMenu,),
-          new IconButton(icon: new Icon(Icons.exit_to_app), onPressed: _logoutDialog,)
-        ],
-      ),
-      body: new Container(
-        child: new Center(
-          child: new FractionallySizedBox(
-            widthFactor: 0.7,
-            child: new Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                new Opacity(
-                  opacity: init ? 1.0 : 0.0,
-                  child: new Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+    return new WillPopScope(
+        onWillPop: _requestPop,
+        child: new Scaffold(
+        appBar: new AppBar(
+          title: new Text(widget.title),
+          actions: <Widget>[
+            new IconButton(icon: new Icon(Icons.menu),tooltip: 'work records', onPressed: openMenu,),
+            new IconButton(icon: new Icon(Icons.exit_to_app),tooltip: 'logout', onPressed: _logoutDialog,)
+          ],
+        ),
+        body: new Container(
+          child: new Center(
+            child: new FractionallySizedBox(
+              widthFactor: 0.7,
+              child: new Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  new Opacity(
+                    opacity: state ? 1.0 : 0.0,
+                    child : new Text(timeStarted,textScaleFactor: 1.1, style: new TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),),),
+
+                  new Divider(height: 15.0, color: Colors.white),
+                  new Opacity(
+                    opacity: init ? 1.0 : 0.0,
+                    child: new Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        new RaisedButton(
+                          child: new Padding(
+                            child: new Text("$buttonState", style: new TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                              textScaleFactor: 1.2,),
+                            padding: new EdgeInsets.all(15.0),
+                          ),
+                          color: Colors.orange[800],
+                          splashColor: Colors.orangeAccent,
+                          textColor: Colors.white,
+                          elevation: 4.0,
+                          onPressed: (){
+                            _saveTime();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  new Divider(height: 20.0, color: Colors.white,),
+                  new Opacity(opacity: state ? 0.0 : 1.0, child:  new Text(
+                    text,style: new TextStyle(color: Colors.black.withOpacity(0.3)),),),
+                  new Opacity(opacity: state ? 1.0 : 0.0, child: new Column(
                     children: <Widget>[
-                      //new Text("At work "),
-                      /*new Switch(value: state, onChanged: (bool value){ _saveTime(value);}),*/
-                      new RaisedButton(
-                        child: Text("$buttonState"),
-                        color: Colors.deepOrangeAccent,
-                        splashColor: Colors.deepOrange,
-                        textColor: Colors.black,
-                        elevation: 0.0,
-                        onPressed: (){
-                          _saveTime();
-                        },
+
+
+                      new Row(
+                        children: <Widget>[
+                          new Text("Project", style: new TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.left,
+                            textScaleFactor: 1.1,),
+                        ],
+                      ),
+                      new Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new DropdownButton(
+                              onChanged: (String value){
+                                _onChange(value);
+                              },
+                              value: projectName,
+                              items: projectNames.toList().map((String value){
+                                return new DropdownMenuItem(
+                                  value: value,
+                                  child: new Container(
+                                    child: new Text (value),
+                                    width: 200.0,
+                                  ),
+                                  //200.0 to 100.0
+                                );
+                              }).toList())
+                        ],
+                      ),
+                      new Divider(
+                        height: 20.0,
+                        color: Colors.white,
+                      ),
+                      new Row(
+                        children: <Widget>[
+                          new Text("Work type", style: new TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.left,
+                            textScaleFactor: 1.1,),
+                        ],
+                      ),
+                      new Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new DropdownButton(
+                              onChanged: (String value){
+                                _onWorkTypeChange(value);
+                              },
+                              value: workType,
+                              items: workTypes.toList().map((String value){
+                                return new DropdownMenuItem(
+                                  value: value,
+                                  child: new Container(
+                                    child: new Text (value),
+                                    width: 200.0,
+                                  ),
+                                  //200.0 to 100.0
+                                );
+                              }).toList())
+                        ],
                       ),
                     ],
-                  ),
-                ),
-
-                new Opacity(opacity: state ? 1.0 : 0.0, child: new Column(
-                  children: <Widget>[
-                    new Text(timeStarted),
-                    new Divider(height: 20.0, color: Colors.white,),
-                    new Row(
-                      children: <Widget>[
-                        new Text("Project", style: new TextStyle(
-                            color: Colors.black.withOpacity(0.6),
-                            fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.left,
-                          textScaleFactor: 1.1,),
-                      ],
-                    ),
-                    new Row(
-                      children: <Widget>[
-                        new DropdownButton(
-                            onChanged: (String value){
-                              _onChange(value);
-                            },
-                            value: projectName,
-                            items: projectNames.toList().map((String value){
-                              return new DropdownMenuItem(
-                                value: value,
-                                child: new Container(
-                                  child: new Text (value),
-                                  width: 200.0,
-                                ),
-                                //200.0 to 100.0
-                              );
-                            }).toList())
-                      ],
-                    ),
-                    new Divider(
-                      height: 20.0,
-                      color: Colors.white,
-                    ),
-                    new Row(
-                      children: <Widget>[
-                        new Text("Work type", style: new TextStyle(
-                            color: Colors.black.withOpacity(0.6),
-                            fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.left,
-                          textScaleFactor: 1.1,),
-                      ],
-                    ),
-                    new Row(
-                      children: <Widget>[
-                        new DropdownButton(
-                            onChanged: (String value){
-                              _onWorkTypeChange(value);
-                            },
-                            value: workType,
-                            items: workTypes.toList().map((String value){
-                              return new DropdownMenuItem(
-                                value: value,
-                                child: new Container(
-                                  child: new Text (value),
-                                  width: 200.0,
-                                ),
-                                //200.0 to 100.0
-                              );
-                            }).toList())
-                      ],
-                    ),
-                  ],
-                ),),
-              ],
+                  ),),
+                ],
+              ),
             ),
           ),
-        ),
         )
-    );
+    ));
   }
-
-
-
-  void _onWorkTypeChange(String value){
+  Future<bool> _requestPop() {
+    //SystemNavigator.pop();
+    print("ahoj");
+    // TODO
+    return new Future.value(true);
+  }
+   /*_requestPop(){
+     SystemNavigator.pop();
+   }*/
+   _onWorkTypeChange(String value) async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("workType", value);
     setState(() {
       workType = value;
     });
   }
 
   void _onChange(String value) async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("projectName", value);
     int id;
     setState((){
       projectName = value;
@@ -201,6 +230,7 @@ class _WorkPageState extends State<WorkPage> {
         }
       }
     });
+
 
     var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
 
@@ -213,7 +243,8 @@ class _WorkPageState extends State<WorkPage> {
         works.add(new Project(projectName: workData[j]['name'], projectId: workData[j]['id']));
         print("DRUHY ZADANI" + workData[j]['id'].toString());
       }
-      workType = workTypes.first;
+       workType = workTypes.first;
+        sharedPreferences.setString("workType", workType);
     });
   }
 
@@ -234,13 +265,16 @@ class _WorkPageState extends State<WorkPage> {
           ),
           actions: <Widget>[
             new FlatButton(
-              child: new Text('Cancel'),
+              child: new Text('Cancel',textScaleFactor: 1.1, style: new TextStyle(
+                fontWeight: FontWeight.bold
+              ),),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             new FlatButton(
-              child: new Text('Logout'),
+              child: new Text('Logout',textScaleFactor: 1.1, style: new TextStyle(
+                fontWeight: FontWeight.bold),),
               onPressed: () {
                 Navigator.of(context).pop();
                 _logout();
@@ -264,12 +298,13 @@ class _WorkPageState extends State<WorkPage> {
         new MyApp()));
   }
 
-  _initState() async{
+  /*INIT STATE*/
+  _initState() async {
     projectNames.clear();
     workTypes.clear();
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
     var response = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : cookie});
-    print("${response.statusCode}");
-    print(response.body);
     userId = json.decode(response.body)['user']['id'];
 
     var response3 = await http.get('https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user', headers: {"cookie" : cookie});
@@ -284,31 +319,38 @@ class _WorkPageState extends State<WorkPage> {
 
     var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
 
-    projectName = projectNames.first;
+    try {
+      if (sharedPreferences.getString("projectName") != "" &&
+          sharedPreferences.getString("projectName") != null) {
+        projectName = sharedPreferences.getString("projectName");
+        _onChange(projectName);
+      } else {
+        projectName = projectNames.first;
+      }
 
-    List workData = json.decode(response2.body);
+      List workData = json.decode(response2.body);
 
-    for(int j = 0; j < workData.length; j++){
-      workTypes.add(workData[j]['name'].toString());
-      works.add(new Project(projectName: workData[j]['name'], projectId: workData[j]['id']));
-      print("PRVNI ZADANI" + workData[j]['id'].toString());
+      for (int j = 0; j < workData.length; j++) {
+        workTypes.add(workData[j]['name'].toString());
+        works.add(new Project(
+            projectName: workData[j]['name'], projectId: workData[j]['id']));
+      }
+    }catch(e){
+
     }
-    workType = workTypes.first;
-
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-
-    setState(() {
+    setState((){
       if(sharedPreferences.getString("timeFrom") != ""){
           state = true;
+          counter++;
           buttonState = "Stop working";
-          timeStarted = "Started at "+sharedPreferences.getString("timeFrom").substring(10,16);
+          timeStarted = "Started at"+sharedPreferences.getString("timeFrom").substring(10,16);
+          text = "";
       }else{
         timeStarted = "";
         buttonState = "Start working";
         state = false;
       }
     });
-
   }
 
   _saveTime() async{
@@ -318,10 +360,12 @@ class _WorkPageState extends State<WorkPage> {
     setState((){
       if(counter % 2 == 0) {
         buttonState = "Stop working";
+        text = "";
         state = true;
       }else{
         state = false;
         buttonState = "Start working";
+        text = "You are not working at the moment!";
       }
       counter++;
       if(state){
@@ -343,7 +387,7 @@ class _WorkPageState extends State<WorkPage> {
             dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) + "00:00+03:00";
       }else {
         fDateFrom =
-            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ "00:00+03:00";
+            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ getMinutes(dateFrom).toString()+ ":00+02:00";
       }
       var dateTo = new DateTime.now().toIso8601String();
 
@@ -373,10 +417,28 @@ class _WorkPageState extends State<WorkPage> {
         "jiraWorklogId" : null
       };
 
+      print(dateFrom);
+      print(dateTo);
+      print("WTF?"+sharedPreferences.getString("timeFrom"));
+      print(fDateFrom);
+      print(fDateTo);
+      print("--------------");
+
       var response = await http.post("https://tmtest.artin.cz/data/work-records",
           body: JSON.encode(data), headers: {"cookie" : cookie, "Content-type" : "application/json;charset=UTF-8"});
 
       print("${response.statusCode}");
+
+      /*if(response.statusCode == 200){
+        Scaffold.of(context).showSnackBar(new SnackBar(
+          content: new Text("Work record added succesfully"),
+        ));
+      }else{
+        Scaffold.of(context).showSnackBar(new SnackBar(
+          content: new Text("Error with uploading work record"),
+        ));
+      }*/
+
       print(response.body);
     }
   }

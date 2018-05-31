@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +18,9 @@ class LoginActivity extends StatelessWidget{
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.deepOrange,
+        primaryColor: Colors.orange[800],
       ),
-      //home: new LoginStateful(title: 'TimeMission', cookie: cookie,),
+      home: new LoginStateful(title: 'Work Records', cookie: cookie,),
     );
   }
 }
@@ -130,7 +131,9 @@ class _LoginState extends State<LoginStateful> {
 
   @override
   Widget build(BuildContext context){
-    return new Scaffold(
+    return new WillPopScope(
+        onWillPop: _requestPop, child:
+     new Scaffold(
       appBar: new AppBar(
         title: new Text(widget.title),
         leading: new IconButton(
@@ -188,8 +191,14 @@ class _LoginState extends State<LoginStateful> {
               );
             }
           },
-      ),
+      ),),
       );
+  }
+  Future<bool> _requestPop() {
+    //SystemNavigator.pop();
+    print("ahoj");
+    // TODO
+    return new Future.value(true);
   }
 
   /*ADD NEW WORK BASED ON USER DEFAULT VALUES*/

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_app/LoginActivity.dart';
 import 'package:flutter_app/WorkActivity.dart';
@@ -15,7 +17,7 @@ class MyApp extends StatelessWidget {
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.deepOrange,
+        primaryColor: Colors.orange[800],
       ),
       home: new MyHomePage(title: 'TimeMission'),
     );
@@ -36,7 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final passwordController = new TextEditingController();
   LoginActivity login;
   String loginUser, loginPass;
-  bool _remember = false;
+  bool _remember = true;
 
   @override
   void dispose(){
@@ -99,7 +101,6 @@ class _MyHomePageState extends State<MyHomePage> {
       sharedPreferences.setString("cookie", cookie);
 
       Navigator.pop(context);
-
       if (cookie.length > 150){
         if (_remember) {
           SharedPreferences sharedPreferences = await SharedPreferences
@@ -123,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     }else{
+
       return showDialog(
         context: context,
         barrierDismissible: true,
@@ -144,88 +146,107 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context){
-    return new Scaffold(
-      appBar: new AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: new Text(widget.title),
-      ),
-      //UI for login
-      body: new Container(
-        child: new Center(
-          child: new FractionallySizedBox(
-            widthFactor: 0.7, // 265 / 375
-            child: new Container(
+    return new WillPopScope(
+        onWillPop: _requestPop, child:
+         new Scaffold(
+          appBar: new AppBar(
+          // Here we take the value from the MyHomePage object that was created by
+          // the App.build method, and use it to set our appbar title.
+          title: new Text(widget.title),
+         ),
+        //UI for login
+        body: new Container(
+            child: new Center(
               child: new Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  new Theme(
-                    data: new ThemeData(
-                        primaryColor: Colors.orangeAccent,
-                        hintColor: Colors.black,
-                        textSelectionColor: Colors.orangeAccent,
-                    ),
-                    child: new TextField(
-                      decoration: new InputDecoration(
-                        labelText: 'Username',
-                      ),
-                      controller: loginController,
-                    ),
-                  ),
+                  new FractionallySizedBox(
+                    widthFactor: 0.7, // 265 / 375
+                    child: new Container(
+                      child: new Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new Theme(
+                            data: new ThemeData(
+                              primaryColor: Colors.orange[700],
+                              hintColor: Colors.black,
+                              //textSelectionColor: Colors.orange[700],
+                            ),
+                            child: new TextField(
+                              decoration: new InputDecoration(
+                                labelText: 'Username',
+                              ),
+                              controller: loginController,
+                            ),
+                          ),
 
-                new Theme(
-                  data: new ThemeData(
-                      primaryColor: Colors.orangeAccent,
-                      hintColor: Colors.black,
-                      textSelectionColor: Colors.orangeAccent,
-                  ),
-                  child:  new TextField(
-                    obscureText: true,
-                    decoration: new InputDecoration(
-                        labelText: 'Password',
-                        hintText: loginPass,
+                          new Theme(
+                            data: new ThemeData(
+                              primaryColor: Colors.orange[700],
+                              hintColor: Colors.black,
+                              //textSelectionColor: Colors.orange[700],
+                            ),
+                            child:  new TextField(
+                              obscureText: true,
+                              decoration: new InputDecoration(
+                                labelText: 'Password',
+                              ),
+                              controller: passwordController,
+                            ),
+                          ),
+                          new Divider(
+                            height: 5.0,
+                            color: Colors.white,
+                          ),
+                          new Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              new Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: <Widget>[
+                                  new Checkbox(value: _remember, onChanged: (bool value){_rememberChange(value);}),
+                                  new Text("  Remember me"),
+                                ],
+                              ),
+                            ],
+                          ),
+                          new Divider(
+                            height: 15.0,
+                            color: Colors.white,
+                          ),
+
+                        ],
+                      ),
                     ),
-                    controller: passwordController,
                   ),
-                ),
-                  new Divider(
-                    height: 5.0,
-                    color: Colors.white,
-                  ),
-                  new Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: <Widget>[
-                      new Checkbox(value: _remember, onChanged: (bool value){_rememberChange(value);}),
-                      new Text("  Remember me"),
-                    ],
-                  ),
-                  new Divider(
-                    height: 15.0,
-                    color: Colors.white,
-                  ),
-                  new Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      new RaisedButton(
-                        child: const Text('Login'),
-                        color: Colors.orangeAccent,
-                        splashColor: Colors.orange,
-                        textColor: Colors.black,
-                        elevation: 0.0,
-                        onPressed: (){
-                          fetchPost(loginController.text, passwordController.text);
+                  new FractionallySizedBox(
+                    widthFactor: 0.7,
+                    child: new Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        new RaisedButton(
+                          child: const Text('Login'),
+                          color: Colors.orange[700],
+                          splashColor: Colors.orangeAccent,
+                          textColor: Colors.white,
+                          elevation: 0.0,
+                          onPressed: (){
+                            fetchPost(loginController.text, passwordController.text);
                           },
-                      )
-                    ],
-                  ),
+                        )
+                      ],
+                    ),
+                  )
                 ],
               ),
-            ),
-          ),
+            )
+        )
         ),
-      ),
-
     );
   }
-
+  Future<bool> _requestPop(){
+    //SystemNavigator.pop();
+    // TODO
+    return new Future.value(true);
+  }
 }
