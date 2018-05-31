@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 class LoginActivity extends StatelessWidget{
   String cookie;
-  bool _isChecked;
 
   LoginActivity({this.cookie});
 
@@ -18,9 +17,9 @@ class LoginActivity extends StatelessWidget{
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.orange,
+        primarySwatch: Colors.deepOrange,
       ),
-      home: new LoginStateful(title: 'TimeMission', cookie: cookie,),
+      //home: new LoginStateful(title: 'TimeMission', cookie: cookie,),
     );
   }
 }
@@ -38,7 +37,6 @@ class LoginStateful extends StatefulWidget {
 
 /*MAIN CLASSS*/
 class _LoginState extends State<LoginStateful> {
-  bool _isChecked = false;
   String user = "";
   String cookie;
 

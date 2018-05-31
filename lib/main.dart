@@ -11,11 +11,11 @@ void main() => runApp(
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.orange,
+        primarySwatch: Colors.deepOrange,
       ),
       home: new MyHomePage(title: 'TimeMission'),
     );
@@ -24,7 +24,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
-
 
   final String title;
 
@@ -95,33 +94,45 @@ class _MyHomePageState extends State<MyHomePage> {
 
     print('Response status: ${response.statusCode}');
     print(response.headers);
+    if(response.statusCode != 500) {
+      var cookie = response.headers['set-cookie'];
+      sharedPreferences.setString("cookie", cookie);
 
-    var cookie = response.headers['set-cookie'];
-    sharedPreferences.setString("cookie", cookie);
+      Navigator.pop(context);
 
-    print(cookie);
+      if (cookie.length > 150){
+        if (_remember) {
+          SharedPreferences sharedPreferences = await SharedPreferences
+              .getInstance();
+          sharedPreferences.setString('username', username);
+          sharedPreferences.setString('password', password);
+        }
 
-    Navigator.pop(context);
-
-    if(cookie.length > 150){
-      if(_remember) {
-        SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-        sharedPreferences.setString('username', username);
-        sharedPreferences.setString('password', password);
+        Navigator.push(context, new MaterialPageRoute(builder: (context) =>
+        new WorkActivity(cookie: cookie,)));
+      } else {
+        return showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) {
+            return new AlertDialog(
+              content: new Text(
+                  "Error with login. Enter a valid username and password"),
+            );
+          },
+        );
       }
-
-      Navigator.push(context, new MaterialPageRoute(builder: (context) =>
-         new WorkActivity(cookie: cookie,)));
     }else{
       return showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context){
-        return new AlertDialog(
-          content: new Text("Error with login. Enter a valid username and password"),
-        );
-      },
-    );
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return new AlertDialog(
+            content: new Text(
+                "Couldn't connect to server"),
+          );
+        },
+      );
     }
   }
 

@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 class WorkActivity extends StatelessWidget {
-  String cookie;
+  final String cookie;
 
   WorkActivity({this.cookie});
 
@@ -17,7 +17,7 @@ class WorkActivity extends StatelessWidget {
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
-        primarySwatch: Colors.orange,
+        primarySwatch: Colors.deepOrange,
       ),
       home: new WorkPage(title: 'TimeMission',cookie: cookie,),
     );
@@ -39,15 +39,16 @@ class _WorkPageState extends State<WorkPage> {
   bool state = false;
   bool init = false;
   String timeStarted = "";
-  String buttonState;
+  String buttonState = "Start working";
   String cookie;
   String projectName;
   String workType;
   int userId;
   List<Project> projects = new List();
-  List<String> projectNames = new List();
-  List<String> workTypes = new List();
+  List<String> projectNames = ["test","test","test","test"];
+  List<String> workTypes = ["test","test","test","test"];
   List<Project> works = new List();
+
   _WorkPageState({this.cookie});
 
   void openSettings(){
@@ -95,8 +96,8 @@ class _WorkPageState extends State<WorkPage> {
                       /*new Switch(value: state, onChanged: (bool value){ _saveTime(value);}),*/
                       new RaisedButton(
                         child: Text("$buttonState"),
-                        color: Colors.orangeAccent,
-                        splashColor: Colors.orange,
+                        color: Colors.deepOrangeAccent,
+                        splashColor: Colors.deepOrange,
                         textColor: Colors.black,
                         elevation: 0.0,
                         onPressed: (){
@@ -256,7 +257,7 @@ class _WorkPageState extends State<WorkPage> {
     sharedPreferences.setString("timeFrom","");
     sharedPreferences.setString("username", "");
     sharedPreferences.setString("password", "");
-    
+
     Navigator.push(
         context,
         new MaterialPageRoute(builder: (context) =>
@@ -264,6 +265,8 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   _initState() async{
+    projectNames.clear();
+    workTypes.clear();
     var response = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : cookie});
     print("${response.statusCode}");
     print(response.body);
@@ -309,8 +312,6 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   _saveTime() async{
-    print("funguje");
-    print(counter);
     String now = new DateTime.now().toString();
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     String dateFrom;
@@ -339,12 +340,10 @@ class _WorkPageState extends State<WorkPage> {
       String fDateFrom;
       if(getMinutes(dateFrom) == 60){
         fDateFrom =
-            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) +
-                getMinutes(dateFrom).toString() + ":00+03:00";
+            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) + "00:00+03:00";
       }else {
         fDateFrom =
-            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) +
-                getMinutes(dateFrom).toString() + ":00+02:00";
+            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ "00:00+03:00";
       }
       var dateTo = new DateTime.now().toIso8601String();
 
@@ -357,6 +356,7 @@ class _WorkPageState extends State<WorkPage> {
             dateTo.substring(11, 14) + getMinutes(dateTo).toString() +
             ":00+02:00";
       }
+
       var data = {
         "id" : 474191,
         "projectId" : getProjectId(projectName),
