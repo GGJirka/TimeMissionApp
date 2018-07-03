@@ -52,7 +52,6 @@ class _LoginState extends State<LoginStateful> {
     initUser();
   }
 
-
   saveWorkState(bool state, String _timeArrived, String _timeLeft) async{
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     sharedPreferences.setBool('isInWork', state);
@@ -62,30 +61,27 @@ class _LoginState extends State<LoginStateful> {
 
   initUser() async{
     var day = DateTime.now();
-    int friday = 5 - day.weekday;
-    String month;
 
-    if(day.month<10){
-      month = "0"+day.month.toString();
-    }else{
-      month = day.month.toString();
+    List<String> daysInWeek = new List();
+    List<String> daysNamesInWeek = ["Monday", "Tuesday","Wednesday","Thursday","Friday"];
+
+    for(int i=0;i<5;i++){
+      daysInWeek.add(day.add(new Duration(days: -day.weekday+1+i)).toIso8601String().substring(0,10));
+      print(day.add(new Duration(days: -day.weekday+1+i)).toIso8601String().substring(0,10));
     }
 
-    print("day:" + day.weekday.toString());
+    String dateFrom = day.add(new Duration(days: -day.weekday+1)).toIso8601String().substring(0,10);
+    String dateTo = day.add(new Duration(days: 5-day.weekday)).toIso8601String().substring(0,10);
 
-    String thisMonday = day.year.toString()+"-"+month+"-"+((day.day - day.weekday) + 1).toString();
-    String thisFriday = day.year.toString()+"-"+month+"-"+(day.day + friday).toString();
-    List<String> makeDate = new List();
-    makeDate.add(day.year.toString());
-
-    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$thisMonday","dateTo":"2018-06-1","userId":205}'
+    var requestResponse =  await http.get('https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$dateFrom","dateTo":"$dateTo","userId":205}'
         ,headers: {"cookie" : cookie});
 
     print(requestResponse.body);
 
     List data  = json.decode(requestResponse.body);
     if (data != null){
-      for (int i = data.length-1; i >= 0; i--) {
+
+      for (int i = data.length-1; i >= 0; i--){
         /*GET A WORK NAME FROM WORK ID AND BRANCH ID*/
         var id = data[i]['projectId'];
         var workId = data[i]['workTypeId'];
@@ -93,16 +89,23 @@ class _LoginState extends State<LoginStateful> {
         var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
         print("${response2.body}");
         List workData = json.decode(response2.body);
-
+        print(workData);
         for(int j = 0; j < workData.length; j++){
           if(workData[j]['id'] == workId){
             work = workData[j]['name'];
           }
         }
         /*----------------------*/
-        print("STILL WORKING $i");
         setState(() {
           /*EXPORT ALL VISIBLE PROJECTS*/
+          for(int k=0;k<daysInWeek.length;k++){
+            if(data[i]['dateFrom'].toString().substring(0,10) == daysInWeek[k]){
+              adProjects.add(new ListItem(added: true,project: daysNamesInWeek[k]));
+              daysInWeek.remove(daysInWeek[k]);
+              daysNamesInWeek.remove(daysNamesInWeek[k]);
+            }
+          }
+          //print(data[i]['id']);
           adProjects.add(new ListItem(date: data[i]['hours'].toString(), time: data[i]['dateFrom'].toString(),timeTo: data[i]['dateTo'].toString(), project: data[i]['projectName'], hour: data[i]['hours'].toString()
               ,workType: work.toString(), added: false));
         /*--------------------*/
@@ -145,7 +148,9 @@ class _LoginState extends State<LoginStateful> {
           itemBuilder: (context, index){
             final item = projects[index];
             if(!item.added){
-              return new Card(
+              return new GestureDetector(
+                //onLongPress: /*deleteDialog(index)*/,
+                child: new Card(
                   child: new Padding(padding: new EdgeInsets.all(15.0),
                     child: new Row(
                       children: <Widget>[
@@ -188,16 +193,46 @@ class _LoginState extends State<LoginStateful> {
                       ],
                     ),
                   )
+                )
               );
+            }else{
+              return new Padding(padding: new EdgeInsets.all(15.0),
+                  child: new Text(item.project, style: new TextStyle(
+                    color: Colors.blue, fontWeight: FontWeight.bold
+                  ),));
             }
           },
       ),),
       );
   }
+
+  deleteDialog(index) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          //title: new Text('Add description'),
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text('Delete',textScaleFactor: 1.1, style: new TextStyle(
+                  fontWeight: FontWeight.bold
+              ),),
+              onPressed: () {
+                  deleteRecord(index);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  deleteRecord(index) async{
+
+  }
+
   Future<bool> _requestPop() {
-    //SystemNavigator.pop();
-    print("ahoj");
-    // TODO
     return new Future.value(true);
   }
 
@@ -227,13 +262,11 @@ class ListItem{
   }
 
   String getTime(){
-    print("TIME: " + time);
     String hour = time.substring(11,16) + " - " + timeTo.substring(11,16);
     return hour;
   }
 
   String setTime(){
-    print("TIME: " + time);
     return "Started at " + time.substring(11,16);
   }
 
@@ -244,12 +277,6 @@ class ListItem{
     var shour = getTime().substring(8,10);
     var smin = getTime().substring(11,13);
 
-    print(getTime().substring(0,2));
-    print(getTime().substring(3,5));
-    print(getTime().substring(8,10));
-    print(getTime().substring(11,13));
-    print("--------------");
-
     var rhour = int.parse(fhour) - int.parse(shour);
     var rmin = int.parse(fmin) - int.parse(smin);
 
@@ -258,23 +285,12 @@ class ListItem{
   }
 
   String getExactHour(){
-    print("DAATE: " + date);
-    var a = date.substring(0,1);
-    var b = date.substring(2,3);
-   // var b = 60/(date.substring(0,3) as int);
-    if(int.parse(b) != 0){
-      b = (60 ~/(int.parse(b))).toString().substring(0,2) + "m";
+    if(hour.length <= 3){
+      print(hour.substring(2,3));
+      return hour + "h";
     }else{
-      b = "";
+      return hour.substring(0,4) + "h";
     }
-    if(int.parse(a) != 0){
-      a = a + "h";
-    }else{
-      a = "";
-    }
-    print(a +" "+ b);
-    //print(b);
-    return a +" "+ b;
   }
 }
 

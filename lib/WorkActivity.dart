@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/LoginActivity.dart';
-import 'package:flutter_app/Settings.dart';
 import 'package:flutter_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -19,7 +18,7 @@ class WorkActivity extends StatelessWidget {
       theme: new ThemeData(
         primaryColor: Colors.orange[800],
       ),
-      home: new WorkPage(title: 'TimeMission',cookie: cookie,),
+      home: new WorkPage(title: 'Time Mission',cookie: cookie,),
     );
   }
 }
@@ -35,6 +34,14 @@ class WorkPage extends StatefulWidget {
 }
 
 class _WorkPageState extends State<WorkPage> {
+  final key = new GlobalKey<ScaffoldState>();
+  final descriptionController = new TextEditingController();
+
+  List<Project> projects = new List();
+  List<String> projectNames = ["test","test"];
+  List<String> workTypes = ["test","test"];
+  List<Project> works = new List();
+
   int counter = 0;
   bool state = false;
   bool init = false;
@@ -42,27 +49,13 @@ class _WorkPageState extends State<WorkPage> {
   String timeStarted = "";
   String buttonState = "Start working";
   String cookie;
-  String projectName;
+  String projectName ;
   String workType;
   int userId;
-  List<Project> projects = new List();
-  List<String> projectNames = ["test","test","test","test"];
-  List<String> workTypes = ["test","test","test","test"];
-  List<Project> works = new List();
 
   _WorkPageState({this.cookie});
 
-  void openSettings(){
-    Navigator.of(context).push(
-        new MaterialPageRoute(builder: (context) =>
-        new SettingsHome()));
-  }
 
-  void openMenu(){
-    Navigator.of(context).push(
-        new MaterialPageRoute(builder: (context) =>
-        new LoginStateful(title: 'Work Records',cookie: cookie,)));
-  }
 
   @override
   void initState(){
@@ -71,11 +64,348 @@ class _WorkPageState extends State<WorkPage> {
     super.initState();
   }
 
+  _onWorkTypeChange(String value) async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("workType", value);
+    setState(() {
+      workType = value;
+    });
+  }
+
+  void openMenu(){
+    Navigator.of(context).push(
+        new MaterialPageRoute(builder: (context) =>
+        new LoginStateful(title: 'Work Records',cookie: cookie,)));
+  }
+  void _onChange(String value) async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("projectName", value);
+    int id;
+    setState((){
+      projectName = value;
+
+      for(int i = 0;i < projects.length; i++){
+        if(projectName == projects[i].projectName){
+          id = projects[i].projectId;
+        }
+      }
+    });
+
+
+    var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
+
+    List workData = json.decode(response2.body);
+
+    setState((){
+      workTypes.clear();
+      for(int j = 0; j < workData.length; j++){
+        workTypes.add(workData[j]['name'].toString());
+        works.add(new Project(projectName: workData[j]['name'], projectId: workData[j]['id']));
+      }
+      if(workTypes.contains(sharedPreferences.getString("workType"))) {
+        workType = sharedPreferences.getString("workType");
+      }else {
+        workType = workTypes.first;
+      }
+      //sharedPreferences.setString("workType", workType);
+    });
+  }
+
+  Future<Null> _logoutDialog() async {
+    return showDialog<Null>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          title: new Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text('Cancel',textScaleFactor: 1.1, style: new TextStyle(
+                  fontWeight: FontWeight.bold
+              ),),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            new FlatButton(
+              child: new Text('Logout',textScaleFactor: 1.1, style: new TextStyle(
+                  fontWeight: FontWeight.bold),),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  _logout() async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    sharedPreferences.setString("timeFrom","");
+    sharedPreferences.setString("username", "");
+    sharedPreferences.setString("password", "");
+    sharedPreferences.setString("cookie", "");
+    Navigator.push(
+        context,
+        new MaterialPageRoute(builder: (context) =>
+        new MyApp()));
+  }
+
+  /*INIT STATE*/
+  _initState() async {
+    projectNames.clear();
+    workTypes.clear();
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+    var response = await http.get('https://tmtest.artin.cz/data/main/user',
+        headers: {"cookie": cookie});
+    userId = json.decode(response.body)['user']['id'];
+
+    var response3 = await http.get(
+        'https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user',
+        headers: {"cookie": cookie});
+    List availableProjects = json.decode(response3.body);
+
+    for (int j = 0; j < availableProjects.length; j++) {
+      projects.add(new Project(projectName: availableProjects[j]['name'],
+          projectId: availableProjects[j]['id']));
+      projectNames.add(availableProjects[j]['name']);
+    }
+
+    int id = projects[0].projectId;
+
+    var response2 = await http.get(
+        'https://tmtest.artin.cz/data/projects/$id/work-types',
+        headers: {"cookie": cookie});
+    try {
+      if (sharedPreferences.getString("projectName") != "" &&
+          sharedPreferences.getString("projectName") != null) {
+        projectName = sharedPreferences.getString("projectName");
+        _onChange(projectName);
+      } else {
+        projectName = projectNames.first;
+      }
+
+      List workData = json.decode(response2.body);
+
+      for (int j = 0; j < workData.length; j++) {
+        workTypes.add(workData[j]['name'].toString());
+        works.add(new Project(
+            projectName: workData[j]['name'], projectId: workData[j]['id']));
+      }
+    } catch (e) {
+
+    }
+
+    setState((){
+      if (sharedPreferences.getString("timeFrom") != "") {
+        state = true;
+        counter++;
+        buttonState = "Stop working";
+        timeStarted = "Started at" +
+            sharedPreferences.getString("timeFrom").substring(10, 16);
+        text = "";
+        //init = true;
+
+      } else {
+        timeStarted = "";
+        buttonState = "Start working";
+        state = false;
+        //init = true;
+
+      }
+    });
+  }
+
+  _saveTime() async{
+    String now = new DateTime.now().toString();
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    String dateFrom;
+    setState((){
+      if(counter % 2 == 0) {
+        buttonState = "Stop working";
+        text = "";
+        state = true;
+        counter++;
+      }else{
+        /*state = false;
+        buttonState = "Start working";
+        text = "You are not working at the moment!";*/
+        dateFrom = sharedPreferences.getString("timeFrom");
+        String fDateTo;
+        String fDateFrom;
+        if(getMinutes(dateFrom) == 60){
+          fDateFrom =
+              dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) + "00:00+03:00";
+        }else {
+          fDateFrom =
+              dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ getMinutes(dateFrom).toString()+ ":00+02:00";
+        }
+
+        var dateTo = new DateTime.now().toIso8601String();
+
+        if(getMinutes(dateTo) == 60){
+          fDateTo = dateTo.substring(0, 10) + "T" +
+              dateTo.substring(11, 14)  +
+              "00:00+03:00";
+        }else {
+          fDateTo = dateTo.substring(0, 10) + "T" +
+              dateTo.substring(11, 14) + getMinutes(dateTo).toString() +
+              ":00+02:00";
+        }
+        _addDescription(fDateTo, fDateFrom);
+      }
+      if(state){
+        sharedPreferences.setString("timeFrom", now);
+        timeStarted = "Started at "+now.substring(10,16);
+      }else{
+        print(sharedPreferences.getString("timeFrom"));
+        dateFrom = sharedPreferences.getString("timeFrom");
+        sharedPreferences.setString("timeFrom", "");
+      }
+    });
+
+    if(!state){
+      String fDateTo;
+      String fDateFrom;
+      if(getMinutes(dateFrom) == 60){
+        fDateFrom =
+            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) + "00:00+03:00";
+      }else {
+        fDateFrom =
+            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ getMinutes(dateFrom).toString()+ ":00+02:00";
+      }
+
+      var dateTo = new DateTime.now().toIso8601String();
+
+      if(getMinutes(dateTo) == 60){
+        fDateTo = dateTo.substring(0, 10) + "T" +
+            dateTo.substring(11, 14)  +
+            "00:00+03:00";
+      }else {
+        fDateTo = dateTo.substring(0, 10) + "T" +
+            dateTo.substring(11, 14) + getMinutes(dateTo).toString() +
+            ":00+02:00";
+      }
+      _addDescription(fDateTo, fDateFrom);
+      /*THEREEE*/
+    }
+  }
+
+  Future<Null> _addDescription(dateTo, dateFrom) async {
+    return showDialog<Null>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          title: new Text('Add description'),
+          content: new TextField(
+            controller: descriptionController,
+          ),
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text('Cancel',textScaleFactor: 1.1, style: new TextStyle(
+                  fontWeight: FontWeight.bold
+              ),),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            new FlatButton(
+              child: new Text('Add',textScaleFactor: 1.1, style: new TextStyle(
+                  fontWeight: FontWeight.bold),),
+              onPressed: () {
+                Navigator.of(context).pop();
+                addWork(dateFrom, dateTo, descriptionController.text);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void addWork(fDateFrom, fDateTo, description) async{
+    var data = {
+      "id" : 474191,
+      "projectId" : getProjectId(projectName),
+      "userId" : userId,
+      "description" : description,
+      "comment" : null,
+      "recordType" : "W",
+      "jiraIssueKey" : null,
+      "workTypeId" : getWorkId(workType),
+      "dateFrom" : fDateFrom,
+      "dateTo" : fDateTo,
+      "hours" : 5.0,
+      "subproject" : null,
+      "jiraWorklogId" : null
+    };
+
+    var response = await http.post("https://tmtest.artin.cz/data/work-records",
+        body: JSON.encode(data), headers: {"cookie" : cookie, "Content-type" : "application/json;charset=UTF-8"});
+
+    if(response.statusCode == 200){
+      showToastMessage("Work record added succesfully");
+    }else{
+      showToastMessage(json.decode(response.body)['message']);
+    }
+
+    setState(() {
+      state = false;
+      buttonState = "Start working";
+      text = "You are not working at the moment!";
+    });
+    counter++;
+  }
+
+  void showToastMessage(String message){
+    key.currentState.showSnackBar(new SnackBar(
+      content: new Text(message),
+    ));
+  }
+
+  int getMinutes(String word){
+    int min = int.parse(word.substring(15,16));
+    int minutes = int.parse(word.substring(14,16));
+
+    if(min>=5){
+      minutes = minutes + (10-min);
+    }else{
+      minutes = minutes - min;
+    }
+    return minutes;
+  }
+
+  double getExactHour(String time, String time2){
+    return double.parse((int.parse(time.substring(11,13)) - int.parse(time2.substring(11,13))).toString()
+        + "." + (1/(60/(getMinutes(time) - getMinutes(time2)))).toString().substring(2,3));
+  }
+
+  int getProjectId(String name){
+    for(int i=0;i<projects.length;i++){
+      if(name == projects[i].projectName){
+        return projects[i].projectId;
+      }
+    }
+  }
+
+  int getWorkId(String name){
+    for(int i=0;i<works.length;i++){
+      print(works[i].projectName);
+      if(name == works[i].projectName){
+        return works[i].projectId;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return new WillPopScope(
-        onWillPop: _requestPop,
-        child: new Scaffold(
+    return new WillPopScope(child:
+    new Scaffold(
+        key: key,
         appBar: new AppBar(
           title: new Text(widget.title),
           actions: <Widget>[
@@ -127,8 +457,6 @@ class _WorkPageState extends State<WorkPage> {
                     text,style: new TextStyle(color: Colors.black.withOpacity(0.3)),),),
                   new Opacity(opacity: state ? 1.0 : 0.0, child: new Column(
                     children: <Widget>[
-
-
                       new Row(
                         children: <Widget>[
                           new Text("Project", style: new TextStyle(
@@ -198,283 +526,7 @@ class _WorkPageState extends State<WorkPage> {
             ),
           ),
         )
-    ));
-  }
-  Future<bool> _requestPop() {
-    //SystemNavigator.pop();
-    print("ahoj");
-    // TODO
-    return new Future.value(true);
-  }
-   /*_requestPop(){
-     SystemNavigator.pop();
-   }*/
-   _onWorkTypeChange(String value) async{
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    sharedPreferences.setString("workType", value);
-    setState(() {
-      workType = value;
-    });
-  }
-
-  void _onChange(String value) async{
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    sharedPreferences.setString("projectName", value);
-    int id;
-    setState((){
-      projectName = value;
-
-      for(int i = 0;i < projects.length; i++){
-        if(projectName == projects[i].projectName){
-          id = projects[i].projectId;
-        }
-      }
-    });
-
-
-    var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
-
-    List workData = json.decode(response2.body);
-
-    setState((){
-      workTypes.clear();
-      for(int j = 0; j < workData.length; j++){
-        workTypes.add(workData[j]['name'].toString());
-        works.add(new Project(projectName: workData[j]['name'], projectId: workData[j]['id']));
-        print("DRUHY ZADANI" + workData[j]['id'].toString());
-      }
-       workType = workTypes.first;
-        sharedPreferences.setString("workType", workType);
-    });
-  }
-
-  Future<Null> _logoutDialog() async {
-    return showDialog<Null>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return new AlertDialog(
-          title: new Text('Are you sure you want to logout?'),
-          content: new SingleChildScrollView(
-            child: new ListBody(
-              children: <Widget>[
-                /*new Text('You will never be satisfied.'),
-                new Text('You\’re like me. I’m never satisfied.'),*/
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            new FlatButton(
-              child: new Text('Cancel',textScaleFactor: 1.1, style: new TextStyle(
-                fontWeight: FontWeight.bold
-              ),),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            new FlatButton(
-              child: new Text('Logout',textScaleFactor: 1.1, style: new TextStyle(
-                fontWeight: FontWeight.bold),),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _logout();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  _logout() async{
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    sharedPreferences.setString("timeFrom","");
-    sharedPreferences.setString("username", "");
-    sharedPreferences.setString("password", "");
-
-    Navigator.push(
-        context,
-        new MaterialPageRoute(builder: (context) =>
-        new MyApp()));
-  }
-
-  /*INIT STATE*/
-  _initState() async {
-    projectNames.clear();
-    workTypes.clear();
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-
-    var response = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : cookie});
-    userId = json.decode(response.body)['user']['id'];
-
-    var response3 = await http.get('https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user', headers: {"cookie" : cookie});
-    List availableProjects = json.decode(response3.body);
-
-    for(int j = 0;j < availableProjects.length; j++){
-      projects.add(new Project(projectName: availableProjects[j]['name'], projectId: availableProjects[j]['id']));
-      projectNames.add(availableProjects[j]['name']);
-    }
-
-    int id = projects[0].projectId;
-
-    var response2 = await http.get('https://tmtest.artin.cz/data/projects/$id/work-types', headers: {"cookie" : cookie});
-
-    try {
-      if (sharedPreferences.getString("projectName") != "" &&
-          sharedPreferences.getString("projectName") != null) {
-        projectName = sharedPreferences.getString("projectName");
-        _onChange(projectName);
-      } else {
-        projectName = projectNames.first;
-      }
-
-      List workData = json.decode(response2.body);
-
-      for (int j = 0; j < workData.length; j++) {
-        workTypes.add(workData[j]['name'].toString());
-        works.add(new Project(
-            projectName: workData[j]['name'], projectId: workData[j]['id']));
-      }
-    }catch(e){
-
-    }
-    setState((){
-      if(sharedPreferences.getString("timeFrom") != ""){
-          state = true;
-          counter++;
-          buttonState = "Stop working";
-          timeStarted = "Started at"+sharedPreferences.getString("timeFrom").substring(10,16);
-          text = "";
-      }else{
-        timeStarted = "";
-        buttonState = "Start working";
-        state = false;
-      }
-    });
-  }
-
-  _saveTime() async{
-    String now = new DateTime.now().toString();
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    String dateFrom;
-    setState((){
-      if(counter % 2 == 0) {
-        buttonState = "Stop working";
-        text = "";
-        state = true;
-      }else{
-        state = false;
-        buttonState = "Start working";
-        text = "You are not working at the moment!";
-      }
-      counter++;
-      if(state){
-        sharedPreferences.setString("timeFrom", now);
-        timeStarted = "Started at "+now.substring(10,16);
-      }else{
-        print(sharedPreferences.getString("timeFrom"));
-        dateFrom = sharedPreferences.getString("timeFrom");
-        sharedPreferences.setString("timeFrom", "");
-        print(now);
-      }
-    });
-
-    if(!state){
-      String fDateTo;
-      String fDateFrom;
-      if(getMinutes(dateFrom) == 60){
-        fDateFrom =
-            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14) + "00:00+03:00";
-      }else {
-        fDateFrom =
-            dateFrom.substring(0, 10) + "T" + dateFrom.substring(11, 14)+ getMinutes(dateFrom).toString()+ ":00+02:00";
-      }
-      var dateTo = new DateTime.now().toIso8601String();
-
-      if(getMinutes(dateTo) == 60){
-        fDateTo = dateTo.substring(0, 10) + "T" +
-            dateTo.substring(11, 14)  +
-            "00:00+03:00";
-      }else {
-        fDateTo = dateTo.substring(0, 10) + "T" +
-            dateTo.substring(11, 14) + getMinutes(dateTo).toString() +
-            ":00+02:00";
-      }
-
-      var data = {
-        "id" : 474191,
-        "projectId" : getProjectId(projectName),
-        "userId" : userId,
-        "description" : null,
-        "comment" : null,
-        "recordType" : "W",
-        "jiraIssueKey" : null,
-        "workTypeId" : getWorkId(workType),
-        "dateFrom" : fDateFrom,
-        "dateTo" : fDateTo,
-        "hours" : 5.0,
-        "subproject" : null,
-        "jiraWorklogId" : null
-      };
-
-      print(dateFrom);
-      print(dateTo);
-      print("WTF?"+sharedPreferences.getString("timeFrom"));
-      print(fDateFrom);
-      print(fDateTo);
-      print("--------------");
-
-      var response = await http.post("https://tmtest.artin.cz/data/work-records",
-          body: JSON.encode(data), headers: {"cookie" : cookie, "Content-type" : "application/json;charset=UTF-8"});
-
-      print("${response.statusCode}");
-
-      /*if(response.statusCode == 200){
-        Scaffold.of(context).showSnackBar(new SnackBar(
-          content: new Text("Work record added succesfully"),
-        ));
-      }else{
-        Scaffold.of(context).showSnackBar(new SnackBar(
-          content: new Text("Error with uploading work record"),
-        ));
-      }*/
-
-      print(response.body);
-    }
-  }
-
-  int getMinutes(String word){
-    int min = int.parse(word.substring(15,16));
-    int minutes = int.parse(word.substring(14,16));
-
-    if(min>=5){
-      minutes = minutes + (10-min);
-    }else{
-      minutes = minutes - min;
-    }
-    return minutes;
-  }
-
-  double getExactHour(String time, String time2){
-    return double.parse((int.parse(time.substring(11,13)) - int.parse(time2.substring(11,13))).toString()
-        + "." + (1/(60/(getMinutes(time) - getMinutes(time2)))).toString().substring(2,3));
-  }
-
-  int getProjectId(String name){
-    for(int i=0;i<projects.length;i++){
-      if(name == projects[i].projectName){
-        return projects[i].projectId;
-      }
-    }
-  }
-
-  int getWorkId(String name){
-    for(int i=0;i<works.length;i++){
-      print(works[i].projectName);
-      if(name == works[i].projectName){
-        return works[i].projectId;
-      }
-    }
+    ), );
   }
 }
 
@@ -486,16 +538,3 @@ class Project {
 
   Project({this.projectName,this.projectId});
 }
-
-/*var fhour = time.substring(11,13);
-    var shour = time2.substring(11,13);
-    var fmin = getMinutes(time);
-
-    var smin = getMinutes(time2);
-
-    var rhour = int.parse(time.substring(11,13)) - int.parse(time2.substring(11,13));
-    var rmin = getMinutes(time) - getMinutes(time2);
-
-    var dmin = 1/(60/(getMinutes(time) - getMinutes(time2)));
-    var ftime = (int.parse(time.substring(11,13)) - int.parse(time2.substring(11,13))).toString()
-        + "." + (1/(60/(getMinutes(time) - getMinutes(time2)))).toString().substring(2,3);*/

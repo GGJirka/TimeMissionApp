@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_app/LoginActivity.dart';
 import 'package:flutter_app/WorkActivity.dart';
@@ -19,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: new ThemeData(
         primaryColor: Colors.orange[800],
       ),
-      home: new MyHomePage(title: 'TimeMission'),
+      home: new MyHomePage(title: 'Time Mission'),
     );
   }
 }
@@ -66,75 +64,92 @@ class _MyHomePageState extends State<MyHomePage> {
     if(loginUser != "" && loginUser != null && loginPass != "" && loginPass != null) {
       fetchPost(loginUser, loginPass);
     }
-
   }
 
   /*POST METHOD*/
   fetchPost(String username, String password) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        child: new Dialog(
-          child: new Padding(
-            padding: new EdgeInsets.only(top: 20.0,bottom:  20.0,right: 0.0, left: 0.0),
-            child: new Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                new CircularProgressIndicator(),
-                new Divider(height: 20.0, color: Colors.white,),
-                new Text("Logging in", style: new TextStyle(
-                ),),
-              ],
-            ),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      child: new Dialog(
+        child: new Padding(
+          padding: new EdgeInsets.only(
+              top: 20.0, bottom: 20.0, right: 0.0, left: 0.0),
+          child: new Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              new CircularProgressIndicator(),
+              new Divider(height: 20.0, color: Colors.white,),
+              new Text("Logging in", style: new TextStyle(
+              ),),
+            ],
           ),
         ),
-      );
+      ),
+    );
 
-    var response = await http.post("https://tmtest.artin.cz/login",
-        body: {"username":username,"password" : password, "remember-me" : "on"}, headers: {"content-type" : "application/x-www-form-urlencoded"});
+    var sharedCookie = sharedPreferences.getString("cookie");
 
-    print('Response status: ${response.statusCode}');
-    print(response.headers);
-    if(response.statusCode != 500) {
-      var cookie = response.headers['set-cookie'];
-      sharedPreferences.setString("cookie", cookie);
+    var response = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : sharedCookie});
 
-      Navigator.pop(context);
-      if (cookie.length > 150){
-        if (_remember) {
-          SharedPreferences sharedPreferences = await SharedPreferences
-              .getInstance();
-          sharedPreferences.setString('username', username);
-          sharedPreferences.setString('password', password);
+    if(response.statusCode == 401){
+      sharedPreferences.setString("cookie", "");
+    }
+
+    if (sharedCookie == "" ||  sharedCookie== null) {
+      var response = await http.post("https://tmtest.artin.cz/login",
+          body: {
+            "username": username,
+            "password": password,
+            "remember-me": "on"
+          }, headers: {"content-type": "application/x-www-form-urlencoded"});
+
+      if (response.statusCode != 500) {
+        var cookie = response.headers['set-cookie'];
+        sharedPreferences.setString("cookie", cookie);
+        Navigator.pop(context);
+
+        if (cookie.length > 150) {
+          if (_remember) {
+            SharedPreferences sharedPreferences = await SharedPreferences
+                .getInstance();
+            sharedPreferences.setString('username', username);
+            sharedPreferences.setString('password', password);
+          }
+          Navigator.pushReplacement(
+              context, new MaterialPageRoute(builder: (context) =>
+          new WorkActivity(cookie: cookie,)));
+        } else {
+          return showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (context) {
+              return new AlertDialog(
+                content: new Text(
+                    "Error with login. Enter a valid username and password"),
+              );
+            },
+          );
         }
-
-        Navigator.push(context, new MaterialPageRoute(builder: (context) =>
-        new WorkActivity(cookie: cookie,)));
       } else {
+        Navigator.pop(context);
         return showDialog(
           context: context,
           barrierDismissible: true,
           builder: (context) {
             return new AlertDialog(
-              content: new Text(
-                  "Error with login. Enter a valid username and password"),
+              content: new Text("Couldn't connect to server"),
             );
           },
         );
       }
     }else{
-
-      return showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (context) {
-          return new AlertDialog(
-            content: new Text(
-                "Couldn't connect to server"),
-          );
-        },
-      );
+      Navigator.pop(context);
+      print("logged via cookie" + sharedCookie);
+      Navigator.pushReplacement(
+          context, new MaterialPageRoute(builder: (context) =>
+      new WorkActivity(cookie: sharedPreferences.getString("cookie"),)));
     }
   }
 
@@ -146,10 +161,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context){
-    return new WillPopScope(
-        onWillPop: _requestPop, child:
-         new Scaffold(
+    return new WillPopScope(child:
+     new Scaffold(
           appBar: new AppBar(
+            centerTitle: true,
           // Here we take the value from the MyHomePage object that was created by
           // the App.build method, and use it to set our appbar title.
           title: new Text(widget.title),
@@ -214,7 +229,6 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 15.0,
                             color: Colors.white,
                           ),
-
                         ],
                       ),
                     ),
@@ -240,13 +254,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             )
-        )
         ),
+    ),
     );
-  }
-  Future<bool> _requestPop(){
-    //SystemNavigator.pop();
-    // TODO
-    return new Future.value(true);
   }
 }
