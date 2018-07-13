@@ -303,9 +303,9 @@ class _LoginState extends State<LoginStateful> {
     for (int i = 0; i < sharedPreferences.getInt("numberOfUnfinishedWorks");
     i++) {
       addWork(description, comment, 1, true);
-      print(i);
+
       setState(() {
-        projects.removeAt(i);
+        //projects.removeAt(i);
       });
     }
   }
