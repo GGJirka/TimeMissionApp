@@ -119,7 +119,10 @@ class _LoginState extends State<LoginStateful> {
     if (prefs.getInt("numberOfUnfinishedWorks") > 0) {
       setState(() {
         adProjects.add(new ListItem(
-            added: true, project: "Waiting for upload", unfinished: false));
+            added: true,
+            project: "Waiting for upload",
+            unfinished: false,
+            uploadAll: true));
       });
 
       for (int i = 1; i < prefs.getInt("numberOfUnfinishedWorks") + 1; i++) {
@@ -268,7 +271,8 @@ class _LoginState extends State<LoginStateful> {
               onPressed: () {
                 Navigator.of(context).pop();
                 addWork(
-                    descriptionController.text, commentController.text, index);
+                    descriptionController.text, commentController.text, index,
+                    false);
               },
             ),
             new FlatButton(
@@ -279,7 +283,8 @@ class _LoginState extends State<LoginStateful> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                addWork("", "", index);
+                index == 0 ? addAllWorks("", "") : addWork(
+                    "", "", index, false);
               },
             ),
           ],
@@ -288,7 +293,26 @@ class _LoginState extends State<LoginStateful> {
     );
   }
 
-  void addWork(description, comment, int index) async {
+  void addAllWorks(description, comment) async {
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+    print("--------");
+    print(sharedPreferences.getInt("numberOfUnfinishedWorks"));
+    print("--------");
+
+    for (int i = 0; i < sharedPreferences.getInt("numberOfUnfinishedWorks");
+    i++) {
+      addWork(description, comment, 1, true);
+      print(i);
+      setState(() {
+        projects.removeAt(i);
+      });
+    }
+  }
+
+  void addWork(description, comment, int index, bool removingAll) async {
+    print("INDEX");
+    print(index);
     SharedPreferences preferences = await SharedPreferences.getInstance();
     print(preferences.getString("timeFrom"));
     print(preferences.getString("timeTo"));
@@ -323,12 +347,14 @@ class _LoginState extends State<LoginStateful> {
     //preferences.remove(prefName);
 
     setState(() {
+      //if(!removingAll) {
       projects.removeAt(index);
 
       if (preferences.getInt("numberOfUnfinishedWorks") == 1) {
         projects.removeAt(0);
         WifiState.instance.showNotification = false;
       }
+      // }
     });
 
     for (int i = index;
@@ -344,17 +370,21 @@ class _LoginState extends State<LoginStateful> {
     if (response.statusCode == 200) {
       showToastMessage(manager.getWords(28));
     } else {
-      showToastMessage(json.decode(response.body)['message']);
+      if (json.decode(response.body)['message'] != null) {
+        showToastMessage(json.decode(response.body)['message']);
+      }
     }
   }
 
   upload(int index) async {
-    var connectivityResult = await (new Connectivity().checkConnectivity());
+    if (projects[index].unfinished != null) {
+      var connectivityResult = await (new Connectivity().checkConnectivity());
 
-    if (connectivityResult == ConnectivityResult.wifi) {
-      _addDescription(index);
-    } else {
-      showToastMessage("No Internet connection");
+      if (connectivityResult == ConnectivityResult.wifi) {
+        _addDescription(index);
+      } else {
+        showToastMessage("No Internet connection");
+      }
     }
   }
 
@@ -485,16 +515,19 @@ class _LoginState extends State<LoginStateful> {
                       style: new TextStyle(
                           color: Colors.blue, fontWeight: FontWeight.bold),
                     ),
-                    new FlatButton(
-                      child: new Text(
-                        "Upload all",
-                        textScaleFactor: 1.0,
-                        style: new TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.blue),
+                    new Opacity(
+                      opacity: item.uploadAll == null ? 0.0 : 1.0,
+                      child: new FlatButton(
+                        child: new Text(
+                          "Upload all",
+                          textScaleFactor: 1.0,
+                          style: new TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                        onPressed: () {
+                          upload(index);
+                        },
                       ),
-                      onPressed: () {
-                        upload(index);
-                      },
                     ),
                   ],
                 ),
@@ -518,6 +551,7 @@ class ListItem {
   String workType;
   String workTypeName;
   bool added;
+  bool uploadAll;
   bool unfinished;
   int projectId;
   int workTypeId;
@@ -535,6 +569,7 @@ class ListItem {
     this.projectId,
     this.workTypeId,
     this.userId,
+    this.uploadAll,
   });
 
   String getDate() {

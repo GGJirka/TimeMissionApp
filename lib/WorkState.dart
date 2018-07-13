@@ -337,7 +337,6 @@ class _WorkPageState extends State<WorkPage> {
       sharedPreferences.setString("timeFrom", "");
       sharedPreferences.setString("timeTo", "");
       if (pressedByWifi) {
-        //SSIDState = "LISTEN";
         WifiState.instance.STATE = "LISTEN";
       }
     });
@@ -541,7 +540,9 @@ class _WorkPageState extends State<WorkPage> {
                       ),
                       new Opacity(
                         opacity: state ? 1.0 : 0.0,
-                        child: new Column(
+                        child: new IgnorePointer(
+                          ignoring: !state,
+                          child: new Column(
                           children: <Widget>[
                             new Row(
                               children: <Widget>[
@@ -615,6 +616,7 @@ class _WorkPageState extends State<WorkPage> {
                               ],
                             ),
                           ],
+                        ),
                         ),
                       ),
                     ],

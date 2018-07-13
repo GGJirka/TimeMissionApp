@@ -57,7 +57,7 @@ class LanguageManager {
         czechText: "Aby se projevila změna, musíte aplikaci restarovat"),
     new Language(englishText: "Change user", czechText: "Změnit uživatele"),
     new Language(englishText: "Upload", czechText: "Nahrát"),
-    new Language(englishText: "Coomment", czechText: "poznámka"),
+    new Language(englishText: "Comment", czechText: "poznámka"),
   ];
 
   LanguageManager({this.sharedPreferences});
