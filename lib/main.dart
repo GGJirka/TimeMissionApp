@@ -1,13 +1,21 @@
+import 'dart:async';
+
+import 'package:connectivity/connectivity.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/LoginActivity.dart';
-import 'package:flutter_app/WorkActivity.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_app/Language.dart';
+import 'package:flutter_app/WifiState.dart';
+import 'package:flutter_app/WorkRecords.dart';
+import 'package:flutter_app/WorkState.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(
     new MyApp()
 );
 
+/*
+* TODO  Fix bug - invalid username on password even doe correct
+*/
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
@@ -29,20 +37,18 @@ class MyHomePage extends StatefulWidget {
 
   @override
   _MyHomePageState createState() => new _MyHomePageState();
+
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final key = new GlobalKey<ScaffoldState>();
+
   final loginController = new TextEditingController();
   final passwordController = new TextEditingController();
   LoginActivity login;
   String loginUser, loginPass;
   bool _remember = true;
-
-  @override
-  void dispose(){
-    loginController.dispose();
-    super.dispose();
-  }
+  LanguageManager manager;
 
   @override
   void initState(){
@@ -52,6 +58,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   getPreferences() async{
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+    if (sharedPreferences.getInt("numberOfUnfinishedWorks") != null) {
+      if (sharedPreferences.getInt("numberOfUnfinishedWorks") > 0) {
+        WifiState.instance.showNotification = true;
+      }
+    }
+
+    manager = new LanguageManager(sharedPreferences: sharedPreferences);
+    manager.setLanguage();
+
     if(sharedPreferences.getString('username') != "") {
       setState(() {
         loginUser = sharedPreferences.getString('username');
@@ -61,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _remember = true;
       });
     }
+
     if(loginUser != "" && loginUser != null && loginPass != "" && loginPass != null) {
       fetchPost(loginUser, loginPass);
     }
@@ -69,9 +86,109 @@ class _MyHomePageState extends State<MyHomePage> {
   /*POST METHOD*/
   fetchPost(String username, String password) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+    showLoadingDialog();
+
+    //Init cookie
+    var sharedCookie = sharedPreferences.getString("cookie");
+    var connectivityResult = await (new Connectivity().checkConnectivity());
+
+    if (connectivityResult == ConnectivityResult.wifi) {
+      var responseTest = await http.get(
+          'https://tmtest.artin.cz/data/main/user',
+          headers: {"cookie": sharedCookie});
+
+      if (responseTest.statusCode == 401) {
+        sharedPreferences.setString("cookie", "");
+      }
+
+      if (sharedCookie == "" || sharedCookie == null) {
+        var response = await http.post("https://tmtest.artin.cz/login",
+            body: {
+              "username": username,
+              "password": password,
+              "remember-me": "on"
+            }, headers: {"content-type": "application/x-www-form-urlencoded"});
+
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+
+        if (response.statusCode != 500) {
+          var cookie = response.headers['set-cookie'];
+
+          var responseTest2 = await http.get(
+              'https://tmtest.artin.cz/data/main/user',
+              headers: {"cookie": cookie});
+
+          if (responseTest2.statusCode != 401) {
+            if (_remember) {
+              sharedPreferences.setString("cookie", cookie);
+              sharedPreferences.setString('username', username);
+              sharedPreferences.setString('password', password);
+            }
+            print("overovani");
+            startWorkActivity(cookie);
+          } else {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+            myDialog(manager.getWords(16));
+          }
+        } else {
+          myDialog(manager.getWords(17));
+        }
+      } else {
+        //var responseTest2 = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : sharedCookie});
+
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+
+        // if(responseTest2.statusCode != 401) {
+        print("pusten cookieskou");
+        startWorkActivity(sharedPreferences.getString("cookie"));
+        /*}else{
+          myDialog(manager.getWords(16));
+        }*/
+      }
+    } else {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      showToastMessage("No Internet connection");
+    }
+  }
+
+  /*If login was successful, this starts the work activity*/
+  void startWorkActivity(cookie) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+    Navigator.pushReplacement(context, new MaterialPageRoute(
+        builder: (context) =>
+        new WorkActivity(
+            cookie: cookie, manager: manager)));
+  }
+
+  /*Dialog with custom text*/
+  Future myDialog(text) {
+    return showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return new AlertDialog(
+          content: new Text(text),
+        );
+      },
+    );
+  }
+
+  /*shows loading dialog.*/
+  void showLoadingDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       child: new Dialog(
         child: new Padding(
           padding: new EdgeInsets.only(
@@ -81,76 +198,13 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               new CircularProgressIndicator(),
               new Divider(height: 20.0, color: Colors.white,),
-              new Text("Logging in", style: new TextStyle(
+              new Text("Loading", style: new TextStyle(
               ),),
             ],
           ),
         ),
       ),
     );
-
-    var sharedCookie = sharedPreferences.getString("cookie");
-
-    var response = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : sharedCookie});
-
-    if(response.statusCode == 401){
-      sharedPreferences.setString("cookie", "");
-    }
-
-    if (sharedCookie == "" ||  sharedCookie== null) {
-      var response = await http.post("https://tmtest.artin.cz/login",
-          body: {
-            "username": username,
-            "password": password,
-            "remember-me": "on"
-          }, headers: {"content-type": "application/x-www-form-urlencoded"});
-
-      if (response.statusCode != 500) {
-        var cookie = response.headers['set-cookie'];
-        sharedPreferences.setString("cookie", cookie);
-        Navigator.pop(context);
-
-        if (cookie.length > 150) {
-          if (_remember) {
-            SharedPreferences sharedPreferences = await SharedPreferences
-                .getInstance();
-            sharedPreferences.setString('username', username);
-            sharedPreferences.setString('password', password);
-          }
-          Navigator.pushReplacement(
-              context, new MaterialPageRoute(builder: (context) =>
-          new WorkActivity(cookie: cookie,)));
-        } else {
-          return showDialog(
-            context: context,
-            barrierDismissible: true,
-            builder: (context) {
-              return new AlertDialog(
-                content: new Text(
-                    "Error with login. Enter a valid username and password"),
-              );
-            },
-          );
-        }
-      } else {
-        Navigator.pop(context);
-        return showDialog(
-          context: context,
-          barrierDismissible: true,
-          builder: (context) {
-            return new AlertDialog(
-              content: new Text("Couldn't connect to server"),
-            );
-          },
-        );
-      }
-    }else{
-      Navigator.pop(context);
-      print("logged via cookie" + sharedCookie);
-      Navigator.pushReplacement(
-          context, new MaterialPageRoute(builder: (context) =>
-      new WorkActivity(cookie: sharedPreferences.getString("cookie"),)));
-    }
   }
 
   _rememberChange(bool value){
@@ -159,103 +213,113 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void showToastMessage(String message) {
+    key.currentState.showSnackBar(new SnackBar(
+      content: new Text(message),
+    ));
+  }
+
   @override
   Widget build(BuildContext context){
-    return new WillPopScope(child:
-     new Scaffold(
-          appBar: new AppBar(
-            centerTitle: true,
-          // Here we take the value from the MyHomePage object that was created by
-          // the App.build method, and use it to set our appbar title.
-          title: new Text(widget.title),
-         ),
-        //UI for login
-        body: new Container(
-            child: new Center(
-              child: new Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  new FractionallySizedBox(
-                    widthFactor: 0.7, // 265 / 375
-                    child: new Container(
-                      child: new Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          new Theme(
-                            data: new ThemeData(
-                              primaryColor: Colors.orange[700],
-                              hintColor: Colors.black,
-                              //textSelectionColor: Colors.orange[700],
-                            ),
-                            child: new TextField(
-                              decoration: new InputDecoration(
-                                labelText: 'Username',
-                              ),
-                              controller: loginController,
-                            ),
-                          ),
-
-                          new Theme(
-                            data: new ThemeData(
-                              primaryColor: Colors.orange[700],
-                              hintColor: Colors.black,
-                              //textSelectionColor: Colors.orange[700],
-                            ),
-                            child:  new TextField(
-                              obscureText: true,
-                              decoration: new InputDecoration(
-                                labelText: 'Password',
-                              ),
-                              controller: passwordController,
-                            ),
-                          ),
-                          new Divider(
-                            height: 5.0,
-                            color: Colors.white,
-                          ),
-                          new Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              new Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: <Widget>[
-                                  new Checkbox(value: _remember, onChanged: (bool value){_rememberChange(value);}),
-                                  new Text("  Remember me"),
-                                ],
-                              ),
-                            ],
-                          ),
-                          new Divider(
-                            height: 15.0,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  new FractionallySizedBox(
-                    widthFactor: 0.7,
+    return new Scaffold(
+      key: this.key,
+      appBar: new AppBar(
+        centerTitle: true,
+        // Here we take the value from the MyHomePage object that was created by
+        // the App.build method, and use it to set our appbar title.
+        title: new Text(widget.title),
+      ),
+      //UI for login
+      body: new Container(
+          child: new Center(
+            child: new Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                new FractionallySizedBox(
+                  widthFactor: 0.7, // 265 / 375
+                  child: new Container(
                     child: new Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
-                        new RaisedButton(
-                          child: const Text('Login'),
-                          color: Colors.orange[700],
-                          splashColor: Colors.orangeAccent,
-                          textColor: Colors.white,
-                          elevation: 0.0,
-                          onPressed: (){
-                            fetchPost(loginController.text, passwordController.text);
-                          },
-                        )
+                        new Theme(
+                          data: new ThemeData(
+                            primaryColor: Colors.orange[700],
+                            hintColor: Colors.black,
+                            //textSelectionColor: Colors.orange[700],
+                          ),
+                          child: new TextField(
+                            decoration: new InputDecoration(
+                              labelText: "Username", //.getWords(19)
+                            ),
+                            controller: loginController,
+                          ),
+                        ),
+
+                        new Theme(
+                          data: new ThemeData(
+                            primaryColor: Colors.orange[700],
+                            hintColor: Colors.black,
+                            //textSelectionColor: Colors.orange[700],
+                          ),
+                          child: new TextField(
+                            obscureText: true,
+                            decoration: new InputDecoration(
+                              labelText: "password",
+                            ),
+                            controller: passwordController,
+                          ),
+                        ),
+                        new Divider(
+                          height: 5.0,
+                          color: Colors.white,
+                        ),
+                        new Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            new Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: <Widget>[
+                                new Checkbox(
+                                    value: _remember, onChanged: (bool value) {
+                                  _rememberChange(value);
+                                }),
+                                new Text(/*manager.getWords(21)*/
+                                    "Remember me"),
+                              ],
+                            ),
+                          ],
+                        ),
+                        new Divider(
+                          height: 15.0,
+                          color: Colors.white,
+                        ),
                       ],
                     ),
-                  )
-                ],
-              ),
-            )
-        ),
-    ),
+                  ),
+                ),
+                new FractionallySizedBox(
+                  widthFactor: 0.7,
+                  child: new Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      new RaisedButton(
+                        child: Text(/*manager.getWords(22)*/ "Login"),
+                        color: Colors.orange[700],
+                        splashColor: Colors.orangeAccent,
+                        textColor: Colors.white,
+                        elevation: 0.0,
+                        onPressed: () {
+                          fetchPost(
+                              loginController.text, passwordController.text);
+                        },
+                      )
+                    ],
+                  ),
+                )
+              ],
+            ),
+          )
+      ),
     );
   }
 }
