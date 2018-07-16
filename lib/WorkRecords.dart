@@ -11,9 +11,6 @@ import 'package:flutter_app/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/*
-* TODO  Fix incorrect size of upload button
-*/
 class LoginActivity extends StatelessWidget {
   final String cookie;
 
@@ -57,9 +54,13 @@ class LoginStateful extends StatefulWidget {
 class _LoginState extends State<LoginStateful> {
   final key = new GlobalKey<ScaffoldState>();
   String user = "";
+
   String cookie;
+
   List<ListItem> projects = new List();
+
   List<ListItem> adProjects = new List();
+
   LanguageManager manager;
 
   final TextEditingController descriptionController =
@@ -79,7 +80,9 @@ class _LoginState extends State<LoginStateful> {
     setState(() {
       projects.add(new ListItem(added: true, unfinished: true));
     });
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
     var day = DateTime.now();
 
     List<String> daysInWeek = new List();
@@ -149,68 +152,81 @@ class _LoginState extends State<LoginStateful> {
     }
 
     var connectivityResult = await (new Connectivity().checkConnectivity());
-    if (connectivityResult == ConnectivityResult.wifi) {
-      var requestResponse = await http.get(
-          'https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$dateFrom","dateTo":"$dateTo","userId":205}',
-          headers: {"cookie": cookie});
+    try {
+      if (connectivityResult == ConnectivityResult.wifi) {
+        var requestResponse = await http.get(
+            'https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$dateFrom","dateTo":"$dateTo","userId":205}',
+            headers: {"cookie": cookie});
 
-      List data = json.decode(requestResponse.body);
+        List data = json.decode(requestResponse.body);
 
-      if (data != null) {
-        for (int i = data.length - 1; i >= 0; i--) {
-          /*GET A WORK NAME FROM WORK ID AND BRANCH ID*/
-          var id = data[i]['projectId'];
-          var workId = data[i]['workTypeId'];
-          var work;
-          var response2 = await http.get(
-              'https://tmtest.artin.cz/data/projects/$id/work-types',
-              headers: {"cookie": cookie});
-          print("${response2.body}");
-          List workData = json.decode(response2.body);
-          print(workData);
-          for (int j = 0; j < workData.length; j++) {
-            if (workData[j]['id'] == workId) {
-              work = workData[j]['name'];
-            }
-          }
-          /*----------------------*/
-          setState(() {
-            /*EXPORT ALL VISIBLE PROJECTS*/
-            for (int k = 0; k < daysInWeek.length; k++) {
-              if (data[i]['dateFrom'].toString().substring(0, 10) ==
-                  daysInWeek[k]) {
-                adProjects.add(new ListItem(
-                    added: true,
-                    project: daysNamesInWeek[k],
-                    unfinished: false));
-                daysInWeek.remove(daysInWeek[k]);
-                daysNamesInWeek.remove(daysNamesInWeek[k]);
+        if (data != null && data.length != 0) {
+          for (int i = data.length - 1; i >= 0; i--) {
+            /*GET A WORK NAME FROM WORK ID AND BRANCH ID*/
+            var id = data[i]['projectId'];
+            var workId = data[i]['workTypeId'];
+            var work;
+            var response2 = await http.get(
+                'https://tmtest.artin.cz/data/projects/$id/work-types',
+                headers: {"cookie": cookie});
+
+            List workData = json.decode(response2.body);
+
+            print("LENGTH");
+            print(workData.length);
+
+            for (int j = 0; j < workData.length; j++) {
+              if (workData[j]['id'] == workId) {
+                work = workData[j]['name'];
               }
             }
-            adProjects.add(new ListItem(
-                date: data[i]['hours'].toString(),
-                time: data[i]['dateFrom'].toString(),
-                timeTo: data[i]['dateTo'].toString(),
-                project: data[i]['projectName'],
-                hour: data[i]['hours'].toString(),
-                workType: work.toString(),
-                added: false));
-            /*--------------------*/
-          });
+
+            setState(() {
+              /*EXPORT ALL VISIBLE PROJECTS*/
+              for (int k = 0; k < daysInWeek.length; k++) {
+                if (data[i]['dateFrom'].toString().substring(0, 10) ==
+                    daysInWeek[k]) {
+                  adProjects.add(new ListItem(
+                      added: true,
+                      project: daysNamesInWeek[k],
+                      unfinished: false));
+                  daysInWeek.remove(daysInWeek[k]);
+                  daysNamesInWeek.remove(daysNamesInWeek[k]);
+                }
+              }
+
+              adProjects.add(new ListItem(
+                  date: data[i]['hours'].toString(),
+                  time: data[i]['dateFrom'].toString(),
+                  timeTo: data[i]['dateTo'].toString(),
+                  project: data[i]['projectName'],
+                  hour: data[i]['hours'].toString(),
+                  workType: work.toString(),
+                  added: false));
+              /*--------------------*/
+            });
+          }
         }
       }
+    } catch (e) {
+      print(e);
     }
-    for (int i = 0; i < adProjects.length; i++) {
-      projects.add(adProjects[i]);
-    }
-    projects.removeAt(0);
+
+    setState(() {
+      /*END LOADING BAR*/
+      projects.removeAt(0);
+
+      for (int i = 0; i < adProjects.length; i++) {
+        projects.add(adProjects[i]);
+      }
+    });
   }
 
   logout() async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     sharedPreferences.clear();
     Navigator.push(
-        context, new MaterialPageRoute(builder: (context) => new MyApp()));
+        context, new MaterialPageRoute(builder: (context) => new MyHomePage()));
   }
 
   void openSettings() {
@@ -219,13 +235,13 @@ class _LoginState extends State<LoginStateful> {
         .push(new MaterialPageRoute(builder: (context) => new SettingsHome()));
   }
 
+  /*DIALOG TO ADD DESCRIPTION AND COMMENT*/
   Future<Null> _addDescription(int index) async {
     return showDialog<Null>(
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
         return new AlertDialog(
-          //title: new Text(manager.getWords(12)),
           content: new SingleChildScrollView(
             child: new ListBody(
               children: <Widget>[
@@ -270,9 +286,8 @@ class _LoginState extends State<LoginStateful> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                addWork(
-                    descriptionController.text, commentController.text, index,
-                    false);
+                addWork(descriptionController.text, commentController.text,
+                    index, false);
               },
             ),
             new FlatButton(
@@ -283,8 +298,9 @@ class _LoginState extends State<LoginStateful> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                index == 0 ? addAllWorks("", "") : addWork(
-                    "", "", index, false);
+                index == 0
+                    ? addAllWorks("", "")
+                    : addWork("", "", index, false);
               },
             ),
           ],
@@ -296,26 +312,15 @@ class _LoginState extends State<LoginStateful> {
   void addAllWorks(description, comment) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
-    print("--------");
-    print(sharedPreferences.getInt("numberOfUnfinishedWorks"));
-    print("--------");
-
-    for (int i = 0; i < sharedPreferences.getInt("numberOfUnfinishedWorks");
+    for (int i = 0;
+    i < sharedPreferences.getInt("numberOfUnfinishedWorks");
     i++) {
       addWork(description, comment, 1, true);
-
-      setState(() {
-        //projects.removeAt(i);
-      });
     }
   }
 
   void addWork(description, comment, int index, bool removingAll) async {
-    print("INDEX");
-    print(index);
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    print(preferences.getString("timeFrom"));
-    print(preferences.getString("timeTo"));
 
     var data = {
       "id": 474191,
@@ -332,8 +337,6 @@ class _LoginState extends State<LoginStateful> {
       "subproject": null,
       "jiraWorklogId": null
     };
-    print(projects[index].time);
-    print(projects[index].timeTo);
 
     var response = await http.post("https://tmtest.artin.cz/data/work-records",
         body: JSON.encode(data),
@@ -342,19 +345,13 @@ class _LoginState extends State<LoginStateful> {
           "Content-type": "application/json;charset=UTF-8"
         });
 
-    String prefName = "unfinishedWork" + index.toString();
-
-    //preferences.remove(prefName);
-
     setState(() {
-      //if(!removingAll) {
       projects.removeAt(index);
 
       if (preferences.getInt("numberOfUnfinishedWorks") == 1) {
         projects.removeAt(0);
         WifiState.instance.showNotification = false;
       }
-      // }
     });
 
     for (int i = index;
@@ -477,7 +474,7 @@ class _LoginState extends State<LoginStateful> {
                                           : 1.0,
                                       child: new FlatButton(
                                         child: new Text(
-                                          manager.getWords(31),
+                                          manager.getWords(31).toUpperCase(),
                                           textScaleFactor: 1.0,
                                           style: new TextStyle(
                                               fontWeight: FontWeight.bold,
@@ -519,7 +516,7 @@ class _LoginState extends State<LoginStateful> {
                       opacity: item.uploadAll == null ? 0.0 : 1.0,
                       child: new FlatButton(
                         child: new Text(
-                          "Upload all",
+                          "UPLOAD ALL",
                           textScaleFactor: 1.0,
                           style: new TextStyle(
                               fontWeight: FontWeight.bold, color: Colors.blue),

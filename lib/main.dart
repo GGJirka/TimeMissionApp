@@ -9,54 +9,67 @@ import 'package:flutter_app/WorkState.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() => runApp(
-    new MyApp()
-);
+void main() => runApp(new MyApp());
 
-/*
-* TODO  Fix bug - invalid username on password even doe correct
-*/
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
+
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
         primaryColor: Colors.orange[800],
       ),
-      home: new MyHomePage(title: 'Time Mission'),
+      home: new MyHomePage(
+        title: 'Time Mission',
+        changeUser: false,
+      ),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key key, this.title, this.changeUser}) : super(key: key);
 
   final String title;
 
-  @override
-  _MyHomePageState createState() => new _MyHomePageState();
+  final bool changeUser;
 
+  @override
+  _MyHomePageState createState() =>
+      new _MyHomePageState(changeUser: changeUser);
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+  /*KEY - HOLDS SCAFFOLD STATE*/
   final key = new GlobalKey<ScaffoldState>();
 
   final loginController = new TextEditingController();
+
   final passwordController = new TextEditingController();
+
   LoginActivity login;
+
   String loginUser, loginPass;
+
   bool _remember = true;
+
+  bool changeUser;
+
   LanguageManager manager;
 
+  _MyHomePageState({@required this.changeUser});
+
   @override
-  void initState(){
+  void initState() {
     getPreferences();
     super.initState();
   }
 
-  getPreferences() async{
+  /*CHECKS IF USER IS ALREADY LOGGED IN*/
+  getPreferences() async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
     if (sharedPreferences.getInt("numberOfUnfinishedWorks") != null) {
@@ -68,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
     manager = new LanguageManager(sharedPreferences: sharedPreferences);
     manager.setLanguage();
 
-    if(sharedPreferences.getString('username') != "") {
+    if (sharedPreferences.getString('username') != "") {
       setState(() {
         loginUser = sharedPreferences.getString('username');
         loginPass = sharedPreferences.getString('password');
@@ -78,21 +91,25 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     }
 
-    if(loginUser != "" && loginUser != null && loginPass != "" && loginPass != null) {
+    if (loginUser != "" &&
+        loginUser != null &&
+        loginPass != "" &&
+        loginPass != null) {
       fetchPost(loginUser, loginPass);
     }
   }
 
-  /*POST METHOD*/
+  /*POST METHOD - CHECK FOR LOGIN*/
   fetchPost(String username, String password) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
-    showLoadingDialog();
-
-    //Init cookie
+    if (!changeUser) {
+      showLoadingDialog();
+    }
     var sharedCookie = sharedPreferences.getString("cookie");
     var connectivityResult = await (new Connectivity().checkConnectivity());
 
+    /*CHECKS FOR INTERNET CONNECTION*/
     if (connectivityResult == ConnectivityResult.wifi) {
       var responseTest = await http.get(
           'https://tmtest.artin.cz/data/main/user',
@@ -102,19 +119,24 @@ class _MyHomePageState extends State<MyHomePage> {
         sharedPreferences.setString("cookie", "");
       }
 
+      /*CHECK IF USER HAS ACTIVE COOKIE
+      * IF SO THEN THE LOGIN IS NOT NEEDED*/
       if (sharedCookie == "" || sharedCookie == null) {
-        var response = await http.post("https://tmtest.artin.cz/login",
-            body: {
-              "username": username,
-              "password": password,
-              "remember-me": "on"
-            }, headers: {"content-type": "application/x-www-form-urlencoded"});
+        var response = await http.post("https://tmtest.artin.cz/login", body: {
+          "username": username,
+          "password": password,
+          "remember-me": "on"
+        }, headers: {
+          "content-type": "application/x-www-form-urlencoded"
+        });
 
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
 
+        /*CHECK IF USERNAME AND PASSWORD ARE CORRECT*/
         if (response.statusCode != 500) {
+          /*CORRECT*/
           var cookie = response.headers['set-cookie'];
 
           var responseTest2 = await http.get(
@@ -127,7 +149,6 @@ class _MyHomePageState extends State<MyHomePage> {
               sharedPreferences.setString('username', username);
               sharedPreferences.setString('password', password);
             }
-            print("overovani");
             startWorkActivity(cookie);
           } else {
             if (Navigator.canPop(context)) {
@@ -136,21 +157,14 @@ class _MyHomePageState extends State<MyHomePage> {
             myDialog(manager.getWords(16));
           }
         } else {
+          /*INCORRECT*/
           myDialog(manager.getWords(17));
         }
       } else {
-        //var responseTest2 = await http.get('https://tmtest.artin.cz/data/main/user', headers: {"cookie" : sharedCookie});
-
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
-
-        // if(responseTest2.statusCode != 401) {
-        print("pusten cookieskou");
         startWorkActivity(sharedPreferences.getString("cookie"));
-        /*}else{
-          myDialog(manager.getWords(16));
-        }*/
       }
     } else {
       if (Navigator.canPop(context)) {
@@ -165,10 +179,11 @@ class _MyHomePageState extends State<MyHomePage> {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
-    Navigator.pushReplacement(context, new MaterialPageRoute(
-        builder: (context) =>
-        new WorkActivity(
-            cookie: cookie, manager: manager)));
+    Navigator.pushReplacement(
+        context,
+        new MaterialPageRoute(
+            builder: (context) =>
+            new WorkActivity(cookie: cookie, manager: manager)));
   }
 
   /*Dialog with custom text*/
@@ -197,9 +212,14 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               new CircularProgressIndicator(),
-              new Divider(height: 20.0, color: Colors.white,),
-              new Text("Loading", style: new TextStyle(
-              ),),
+              new Divider(
+                height: 20.0,
+                color: Colors.white,
+              ),
+              new Text(
+                "Loading",
+                style: new TextStyle(),
+              ),
             ],
           ),
         ),
@@ -207,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  _rememberChange(bool value){
+  _rememberChange(bool value) {
     setState(() {
       _remember = value;
     });
@@ -220,7 +240,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return new Scaffold(
       key: this.key,
       appBar: new AppBar(
@@ -254,7 +274,6 @@ class _MyHomePageState extends State<MyHomePage> {
                             controller: loginController,
                           ),
                         ),
-
                         new Theme(
                           data: new ThemeData(
                             primaryColor: Colors.orange[700],
@@ -280,7 +299,8 @@ class _MyHomePageState extends State<MyHomePage> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: <Widget>[
                                 new Checkbox(
-                                    value: _remember, onChanged: (bool value) {
+                                    value: _remember,
+                                    onChanged: (bool value) {
                                   _rememberChange(value);
                                 }),
                                 new Text(/*manager.getWords(21)*/
@@ -318,8 +338,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 )
               ],
             ),
-          )
-      ),
+          )),
     );
   }
 }

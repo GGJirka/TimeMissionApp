@@ -40,7 +40,9 @@ class WorkPage extends StatefulWidget {
   WorkPage({Key key, this.title, this.cookie, this.manager}) : super(key: key);
 
   final String title;
+
   final String cookie;
+
   final LanguageManager manager;
 
   @override
@@ -55,23 +57,33 @@ class _WorkPageState extends State<WorkPage> {
   final key = new GlobalKey<ScaffoldState>();
 
   final descriptionController = new TextEditingController();
+
   LanguageManager manager;
 
   List<Project> projects = new List();
+
   List<String> projectNames = ["test", "test"];
+
   List<String> workTypes = ["test", "test"];
+
   List<Project> works = new List();
 
   bool state = false;
-  bool init = false;
-  String text = "";
-  String timeStarted = "";
-  String buttonState = "";
-  String cookie;
-  String projectName;
-  String workType;
 
-  //String SSIDState = "LISTEN";
+  bool init = false;
+
+
+  String text = "";
+
+  String timeStarted = "";
+
+  String buttonState = "";
+
+  String cookie;
+
+  String projectName;
+
+  String workType;
 
   int userId;
   var countdown = 0;
@@ -113,10 +125,13 @@ class _WorkPageState extends State<WorkPage> {
         )));
   }
 
+
   void _onChange(String value) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     sharedPreferences.setString("projectName", value);
+
     int id;
+
     setState(() {
       projectName = value;
 
@@ -135,6 +150,7 @@ class _WorkPageState extends State<WorkPage> {
 
     setState(() {
       workTypes.clear();
+
       for (int j = 0; j < workData.length; j++) {
         workTypes.add(workData[j]['name'].toString());
         works.add(new Project(
@@ -146,24 +162,28 @@ class _WorkPageState extends State<WorkPage> {
       } else {
         workType = workTypes.first;
       }
-      //sharedPreferences.setString("workType", workType);
     });
   }
 
   /*INIT STATE*/
   _initState() async {
     getSSID();
+
     projectNames.clear();
     workTypes.clear();
+
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
     try {
       var response = await http.get('https://tmtest.artin.cz/data/main/user',
           headers: {"cookie": cookie});
+
       userId = json.decode(response.body)['user']['id'];
 
       var response3 = await http.get(
           'https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user',
           headers: {"cookie": cookie});
+
       List availableProjects = json.decode(response3.body);
 
       for (int j = 0; j < availableProjects.length; j++) {
@@ -217,11 +237,6 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   _saveTime(bool pressedByWifi) async {
-    /*if(!state){
-      WifiState.instance.STATE = "INITIALIZE";
-    }else{
-      WifiState.instance.STATE = "LISTEN";
-    }*/
     String now = new DateTime.now().toString();
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     String dateFrom;

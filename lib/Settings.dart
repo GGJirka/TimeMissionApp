@@ -326,6 +326,7 @@ class SettingsHomeState extends State<SettingsHome> {
   checkForUnfinishedProjects(cookie) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
+
     if (sharedPreferences.getInt("numberOfUnfinishedWorks") > 0) {
       unfinishedTaskDialog(cookie);
     } else {
@@ -334,7 +335,6 @@ class SettingsHomeState extends State<SettingsHome> {
   }
 
   saveCredentials(cookie) async {
-    Navigator.pop(context);
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
     sharedPreferences.setString("timeFrom", "");
@@ -355,8 +355,32 @@ class SettingsHomeState extends State<SettingsHome> {
         .getPasswordController()
         .text);
 
-    Navigator.push(
-        context, new MaterialPageRoute(builder: (context) => new MyApp()));
+    Navigator.pushReplacement(
+        context, new MaterialPageRoute(builder: (context) =>
+    new MyHomePage(
+      title: "Time Mission", changeUser: true,)));
+  }
+
+  void showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      child: new Dialog(
+        child: new Padding(
+          padding: new EdgeInsets.only(
+              top: 20.0, bottom: 20.0, right: 0.0, left: 0.0),
+          child: new Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              new CircularProgressIndicator(),
+              new Divider(height: 20.0, color: Colors.white,),
+              new Text("Loading", style: new TextStyle(
+              ),),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<Null> unfinishedTaskDialog(cookie) async {
