@@ -30,6 +30,8 @@ class SettingsHomeState extends State<SettingsHome> {
 
   bool _state = true;
 
+  bool wifiTracking;
+
   LanguageManager manager;
 
   Controllers controllers = new Controllers();
@@ -38,6 +40,8 @@ class SettingsHomeState extends State<SettingsHome> {
 
   List<ExpansionItem> listItems;
   List<ExpansionItem> listItems2;
+  List<ExpansionItem> listItems3;
+
 
   @override
   void initState() {
@@ -52,14 +56,26 @@ class SettingsHomeState extends State<SettingsHome> {
           isExpanded: false,
           names: <String>[manager.getWords(10), manager.getWords(11)]),
     ];
+    listItems3 = <ExpansionItem>[
+      new ExpansionItem(
+          isExpanded: false,
+          names: <String>[manager.getWords(10), manager.getWords(11)]),
+    ];
     loadValue();
   }
 
   loadValue() async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
     sharedPreferences.get("language") == "czech"
         ? changeValue(1, true)
         : changeValue(0, true);
+
+    if(sharedPreferences.getBool("Tracking") != null) {
+      wifiTracking = sharedPreferences.getBool("Tracking");
+    }else{
+      wifiTracking = true;
+    }
   }
 
   void changeValue(int value, bool isFromInit) {
@@ -69,6 +85,17 @@ class SettingsHomeState extends State<SettingsHome> {
         saveValue(value);
       }
     });
+  }
+
+   onChange(bool value) async{
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+    setState(() {
+      wifiTracking = value;
+    });
+
+    sharedPreferences.setBool("Tracking", wifiTracking);
+    print(sharedPreferences.getBool("Tracking"));
   }
 
   void changeState() {
@@ -109,6 +136,7 @@ class SettingsHomeState extends State<SettingsHome> {
               setState(() {
                 listItems[index].isExpanded = !listItems[index].isExpanded;
                 listItems2[index].isExpanded = false;
+                listItems3[index].isExpanded = false;
               });
             },
             children: listItems.map((ExpansionItem item) {
@@ -165,6 +193,7 @@ class SettingsHomeState extends State<SettingsHome> {
               setState(() {
                 listItems2[index].isExpanded = !listItems2[index].isExpanded;
                 listItems[index].isExpanded = false;
+                listItems3[index].isExpanded = false;
               });
             },
             children: listItems2.map((ExpansionItem item) {
@@ -252,27 +281,46 @@ class SettingsHomeState extends State<SettingsHome> {
             }).toList(),
           ),
 
-          /*new GestureDetector(
-            child: new Card(
-              child: new Padding(
-                padding: EdgeInsets.all(10.0),
-                child: new Row(
-                  children: <Widget>[
-                    new Checkbox(
-                        value: _state,
-                        onChanged: (bool value){
-                          changeWifiState(value);
-                        },
+          new ExpansionPanelList(
+            expansionCallback: (int index, bool isExpanded) {
+              setState(() {
+                listItems3[index].isExpanded = !listItems3[index].isExpanded;
+                listItems2[index].isExpanded = false;
+                listItems[index].isExpanded = false;
+              });
+            },
+            children: listItems3.map((ExpansionItem item) {
+              return new ExpansionPanel(
+                headerBuilder: (BuildContext context, bool isExpanded) {
+                  return new Padding(
+                    padding: EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 15.0),
+                    child: new Text(
+                      "WiFi tracking",
+                      textScaleFactor: 1.1,
+                      style: new TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
                     ),
-                    new Text(
-                      "Enable auto change state base on WiFI"
+                  );
+                },
+                isExpanded: item.isExpanded,
+                body: new Column(
+                  children: <Widget>[
+                    new Row(
+                      children: <Widget>[
+                        new Checkbox(value: wifiTracking, onChanged: (bool value){onChange(value);}),
+                        new Padding(
+                          padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 10.0),
+                          child: new Text("WiFi tracking"),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-            ),
-            onTap: changeState,
-          )*/
+              );
+            }).toList(),
+          ),
         ],
       ),
     );

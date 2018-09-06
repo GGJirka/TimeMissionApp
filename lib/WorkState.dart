@@ -11,9 +11,6 @@ import 'package:flutter_app/WorkRecords.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/*
-* TODO  Fix the time at :55
-*/
 class WorkActivity extends StatelessWidget {
   final String cookie;
   final LanguageManager manager;
@@ -64,7 +61,7 @@ class _WorkPageState extends State<WorkPage> {
 
   List<String> projectNames = ["test", "test"];
 
-  List<String> workTypes = ["test", "test"];
+  List<String> workTypes = ["test","test"];
 
   List<Project> works = new List();
 
@@ -169,9 +166,6 @@ class _WorkPageState extends State<WorkPage> {
   _initState() async {
     getSSID();
 
-    projectNames.clear();
-    workTypes.clear();
-
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
     try {
@@ -186,6 +180,9 @@ class _WorkPageState extends State<WorkPage> {
 
       List availableProjects = json.decode(response3.body);
 
+      if(availableProjects.length > 0){
+        projectNames.clear();
+      }
       for (int j = 0; j < availableProjects.length; j++) {
         projects.add(new Project(
             projectName: availableProjects[j]['name'],
@@ -208,6 +205,10 @@ class _WorkPageState extends State<WorkPage> {
       }
 
       List workData = json.decode(response2.body);
+
+      if(workData.length > 0){
+        workTypes.clear();
+      }
 
       for (int j = 0; j < workData.length; j++) {
         workTypes.add(workData[j]['name'].toString());
@@ -276,7 +277,7 @@ class _WorkPageState extends State<WorkPage> {
       fDateFrom = dateFrom.substring(0, 10) +
           "T" +
           (int.parse(dateFrom.substring(11, 13)) + 1).toString() +
-          ":00:00+03:00";
+          ":00:00+02:00";
     } else {
       fDateFrom = dateFrom.substring(0, 10) +
           "T" +
@@ -299,7 +300,7 @@ class _WorkPageState extends State<WorkPage> {
       fDateTo = dateTo.substring(0, 10) +
           "T" +
           (int.parse(dateTo.substring(11, 13)) + 1).toString() +
-          ":00:00+03:00";
+          ":00:00+02:00";
     } else {
       fDateTo = dateTo.substring(0, 10) +
           "T" +
@@ -327,24 +328,31 @@ class _WorkPageState extends State<WorkPage> {
       sharedPreferences.setInt("numberOfUnfinishedWorks", 0);
     }
 
-    /*if (int.parse(fDateTo.substring(11, 13)) -
+    print("SUM OF NUMBER");
+
+
+    print(int.parse(fDateFrom.substring(14, 16)));
+    print(int.parse(fDateTo.substring(14, 16)));
+
+    if (int.parse(fDateTo.substring(11, 13)) -
                 int.parse(fDateFrom.substring(11, 13)) >
             0 ||
-        int.parse(fDateFrom.substring(14, 16)) -
-                int.parse(fDateTo.substring(14, 16)) >
-            0) {*/
+        int.parse(fDateTo.substring(14, 16)) -
+                int.parse(fDateFrom.substring(14, 16)) >
+            0) {
 
-    sharedPreferences.setInt("numberOfUnfinishedWorks",
-        sharedPreferences.getInt("numberOfUnfinishedWorks") + 1);
-    String prefName = "unfinishedWork" +
-        sharedPreferences.getInt("numberOfUnfinishedWorks").toString();
-    sharedPreferences.setStringList(prefName, workData);
-    print(prefName);
-    /* } else {
+      sharedPreferences.setInt("numberOfUnfinishedWorks",
+          sharedPreferences.getInt("numberOfUnfinishedWorks") + 1);
+      String prefName = "unfinishedWork" +
+          sharedPreferences.getInt("numberOfUnfinishedWorks").toString();
+      sharedPreferences.setStringList(prefName, workData);
+      WifiState.instance.showNotification = true;
+
+     } else {
       showToastMessage("Work time must be longer than 10 min");
-    }*/
+    }
 
-    WifiState.instance.showNotification = true;
+
     setState(() {
       state = false;
       buttonState = manager.getWords(0);
@@ -388,41 +396,48 @@ class _WorkPageState extends State<WorkPage> {
 
   /*Auto start work based on WiFi*/
   Future<String> getSSID() async {
-    String SSID;
-    try {
-      SSID = await platform.invokeMethod("getSSID");
-      var state = WifiState.instance.STATE;
-      switch (state) {
-        case "LISTEN":
-          if (SSID == '"artin_unifi_guest"') {
-            WifiState.instance.STATE = "INITIALIZE";
-          }
-          break;
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
-        case "INITIALIZE":
-          await _startOnWifi();
-          break;
+    if( sharedPreferences.getBool("Tracking") == null || sharedPreferences.getBool("Tracking") == true){
+      String SSID;
+      try {
+        SSID = await platform.invokeMethod("getSSID");
+        var state = WifiState.instance.STATE;
+        
+        switch (state) {
+          case "LISTEN":
+            if (SSID == '"artin_unifi_guest"') {
+              WifiState.instance.STATE = "INITIALIZE";
+            }
+            break;
 
-        case "SAVE":
-          if (SSID == "<unknown ssid>") {
-            this.state ? await _saveDataOnWifiEnd() : WifiState.instance.STATE =
-            "LISTEN";
-          }
-          break;
+          case "INITIALIZE":
+            await _startOnWifi();
+            break;
+
+          case "SAVE":
+            if (SSID == "<unknown ssid>") {
+              this.state ? await _saveDataOnWifiEnd() : WifiState.instance.STATE =
+              "LISTEN";
+            }
+            break;
+        }
+      } catch (exception) {
+        print(exception);
       }
-    } catch (exception) {
-      print(exception);
+      getSSID();
+      return SSID;
     }
-    getSSID();
-    return SSID;
+    return "";
   }
 
   _saveDataOnWifiEnd() async {
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    sharedPreferences.setString("timeTo", new DateTime.now().toString());
-    print(sharedPreferences.getString("timeFrom"));
-    print(sharedPreferences.getString("timeTo"));
-    setTime(sharedPreferences.getString("timeFrom"), true);
+      SharedPreferences sharedPreferences = await SharedPreferences
+          .getInstance();
+      sharedPreferences.setString("timeTo", new DateTime.now().toString());
+      print(sharedPreferences.getString("timeFrom"));
+      print(sharedPreferences.getString("timeTo"));
+      setTime(sharedPreferences.getString("timeFrom"), true);
   }
 
   _startOnWifi() async {
@@ -651,3 +666,5 @@ class Project {
 
   Project({this.projectName, this.projectId});
 }
+
+//just to make it 666

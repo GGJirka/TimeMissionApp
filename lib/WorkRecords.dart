@@ -154,8 +154,13 @@ class _LoginState extends State<LoginStateful> {
     var connectivityResult = await (new Connectivity().checkConnectivity());
     try {
       if (connectivityResult == ConnectivityResult.wifi) {
+        var response = await http.get('https://tmtest.artin.cz/data/main/user',
+            headers: {"cookie": cookie});
+
+        int userId = json.decode(response.body)['user']['id'];
+
         var requestResponse = await http.get(
-            'https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$dateFrom","dateTo":"$dateTo","userId":205}',
+            'https://tmtest.artin.cz/data/work-records?filter={"dateFrom":"$dateFrom","dateTo":"$dateTo","userId":$userId}',
             headers: {"cookie": cookie});
 
         List data = json.decode(requestResponse.body);
@@ -171,9 +176,6 @@ class _LoginState extends State<LoginStateful> {
                 headers: {"cookie": cookie});
 
             List workData = json.decode(response2.body);
-
-            print("LENGTH");
-            print(workData.length);
 
             for (int j = 0; j < workData.length; j++) {
               if (workData[j]['id'] == workId) {
