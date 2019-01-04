@@ -188,10 +188,9 @@ class _LoginState extends State<LoginStateful> {
             List workData = json.decode(response2.body);
 
             //May cause troubles
-
             for (int j = 0; j < workData.length; j++) {
               if (workData[j]['id'] == workId) {
-                work = workData[j]['name'];
+                //work = workData[j]['name'];
                 //work = "konzultant";
               }
             }
