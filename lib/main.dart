@@ -1,8 +1,10 @@
 import 'dart:async';
-
+import 'dart:convert';
+import 'dart:io';
 import 'package:connectivity/connectivity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/Language.dart';
+import 'package:flutter_app/Project.dart';
 import 'package:flutter_app/WifiState.dart';
 import 'package:flutter_app/WorkRecords.dart';
 import 'package:flutter_app/WorkState.dart';
@@ -50,6 +52,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final passwordController = new TextEditingController();
 
+  List<Project> projects = new List();
+
+  List<Project> works = new List();
+
+  int userId;
+
   LoginActivity login;
 
   String loginUser, loginPass;
@@ -95,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
         loginUser != null &&
         loginPass != "" &&
         loginPass != null) {
-      fetchPost(loginUser, loginPass);
+      await fetchPost(loginUser, loginPass);
     }
   }
 
@@ -106,22 +114,29 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!changeUser) {
       showLoadingDialog();
     }
+
     var sharedCookie = sharedPreferences.getString("cookie");
+
+    print(sharedCookie);
+
     var connectivityResult = await (new Connectivity().checkConnectivity());
 
     /*CHECKS FOR INTERNET CONNECTION*/
     if (connectivityResult == ConnectivityResult.wifi) {
+
       var responseTest = await http.get(
           'https://tmtest.artin.cz/data/main/user',
           headers: {"cookie": sharedCookie});
 
-      if (responseTest.statusCode == 401) {
+        //showToastMessage(responseTest.statusCode.toString());
+
+      /*if (responseTest.statusCode == 401) {
         sharedPreferences.setString("cookie", "");
-      }
+      }*/
 
       /*CHECK IF USER HAS ACTIVE COOKIE
       * IF SO THEN THE LOGIN IS NOT NEEDED*/
-      if (sharedCookie == "" || sharedCookie == null) {
+      if (/*sharedCookie == "" || sharedCookie == null*/responseTest.statusCode == 401) {
         var response = await http.post("https://tmtest.artin.cz/login", body: {
           "username": username,
           "password": password,
@@ -149,7 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
               sharedPreferences.setString('username', username);
               sharedPreferences.setString('password', password);
             }
-            startWorkActivity(cookie);
+            print("loaded new cookie");
+            startWorkActivity(cookie, username, password);
           } else {
             if (Navigator.canPop(context)) {
               Navigator.pop(context);
@@ -164,7 +180,8 @@ class _MyHomePageState extends State<MyHomePage> {
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
-        startWorkActivity(sharedPreferences.getString("cookie"));
+        print("loaded from memory");
+        startWorkActivity(sharedPreferences.getString("cookie"), username, password);
       }
     } else {
       if (Navigator.canPop(context)) {
@@ -174,16 +191,98 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+   _loadLists(cookie) async{
+    try{
+    var response = await http.get('https://tmtest.artin.cz/data/main/user',
+        headers: {"cookie": cookie});
+
+    userId = json.decode(response.body)['user']['id'];
+
+    var response3 = await http.get(
+        'https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user',
+        headers: {"cookie": cookie});
+
+    List availableProjects = await json.decode(response3.body);
+
+    for (int j = 0; j < availableProjects.length; j++) {
+      print( availableProjects[j]['name']);
+      projects.add(new Project(
+          projectName: availableProjects[j]['name'],
+          projectId: availableProjects[j]['id']));
+      //projectNames.add(availableProjects[j]['name']);
+    }
+
+    int id = projects[0].projectId;
+
+    var response2 = await http.get(
+        'https://tmtest.artin.cz/data/projects/$id/work-types',
+        headers: {"cookie": cookie});
+
+    /*if (sharedPreferences.getString("projectName") != "" &&
+        sharedPreferences.getString("projectName") != null) {
+      projectName = sharedPreferences.getString("projectName");
+      _onChange(projectName);
+    } else {
+      projectName = projectNames.first;
+    }*/
+
+    List workData = json.decode(response2.body);
+
+    for (int j = 0; j < workData.length; j++) {
+      print(workData[j]['name'].toString());
+      /*if(workData[j]['name'] != null) {
+        workTypes.add(workData[j]['name'].toString());
+      }*/
+      works.add(new Project(
+          projectName: workData[j]['name'], projectId: workData[j]['id']));
+    }
+    /*if (workTypes.length != 0) {
+      workType = workTypes.first;
+    }*/
+  } catch (e) {}
+}
   /*If login was successful, this starts the work activity*/
-  void startWorkActivity(cookie) {
+   startWorkActivity(cookie, username, pass) async{
+
+     print("started activity");
+     await _loadLists(cookie);
+
+
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
-    Navigator.pushReplacement(
-        context,
-        new MaterialPageRoute(
-            builder: (context) =>
-            new WorkActivity(cookie: cookie, manager: manager)));
+    print(projects.length);
+    print(works.length);
+
+    bool listInit = false;
+
+    if(projects.length > 0 && !listInit) {
+      print("passed");
+      print(projects.length);
+
+      Navigator.pushReplacement(
+          context,
+          new MaterialPageRoute(
+              builder: (context) =>
+              new WorkActivity(cookie: cookie,
+                  manager: manager,
+                  projects: projects,
+                  works: works,
+                  userId: userId)));
+      listInit = true;
+    }else{
+
+      var response = await http.post("https://tmtest.artin.cz/login", body: {
+        "username": username,
+        "password": pass,
+        "remember-me": "on"
+      }, headers: {
+        "content-type": "application/x-www-form-urlencoded"
+      });
+
+      var newCookie = response.headers['set-cookie'];
+      startWorkActivity(newCookie, username, pass);
+    }
   }
 
   /*Dialog with custom text*/

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:flutter_app/Project.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/Language.dart';
@@ -12,10 +12,18 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WorkActivity extends StatelessWidget {
+
   final String cookie;
+
   final LanguageManager manager;
 
-  WorkActivity({this.cookie, this.manager});
+  final List<Project> projects;
+
+  final List<Project> works;
+
+  final int userId;
+
+  WorkActivity({this.cookie, this.manager, this.projects, this.works, this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +36,16 @@ class WorkActivity extends StatelessWidget {
         title: 'Time Mission',
         cookie: cookie,
         manager: manager,
+        projects: projects,
+        works: works,
+        userId: userId,
       ),
     );
   }
 }
 
 class WorkPage extends StatefulWidget {
-  WorkPage({Key key, this.title, this.cookie, this.manager}) : super(key: key);
+  WorkPage({Key key, this.title, this.cookie, this.manager, this.projects, this.works, this.userId}) : super(key: key);
 
   final String title;
 
@@ -42,9 +53,15 @@ class WorkPage extends StatefulWidget {
 
   final LanguageManager manager;
 
+  final List<Project> projects;
+
+  final List<Project> works;
+
+  final userId;
+
   @override
   _WorkPageState createState() =>
-      new _WorkPageState(cookie: cookie, manager: manager);
+      new _WorkPageState(cookie: cookie, manager: manager, projects: projects, works: works, userId: userId);
 }
 
 class _WorkPageState extends State<WorkPage> {
@@ -57,13 +74,13 @@ class _WorkPageState extends State<WorkPage> {
 
   LanguageManager manager;
 
-  List<Project> projects = new List();
+  List<Project> projects;
 
-  List<String> projectNames = ["test", "test"];
+  List<String> projectNames = new List();
 
-  List<String> workTypes = ["test","test"];
+  List<String> workTypes = new List();
 
-  List<Project> works = new List();
+  List<Project> works;
 
   bool state = false;
 
@@ -83,14 +100,29 @@ class _WorkPageState extends State<WorkPage> {
   String workType;
 
   int userId;
+
   var countdown = 0;
 
-  _WorkPageState({this.cookie, this.manager});
+  _WorkPageState({this.cookie, this.manager, this.works, this.projects, this.userId});
 
   @override
   void initState() {
     buttonState = manager.getWords(0);
     text = manager.getWords(2);
+
+    for(int i=0; i < projects.length;i++){
+      projectNames.add(projects[i].projectName);
+    }
+
+    for(int i=0; i < works.length;i++){
+      workTypes.add(works[i].projectName);
+    }
+    print(projectNames.length);
+    print(workTypes.length);
+
+    projectName = projectNames.first;
+    workType = workTypes.first;
+
     _initState();
     super.initState();
   }
@@ -164,61 +196,30 @@ class _WorkPageState extends State<WorkPage> {
 
   /*INIT STATE*/
   _initState() async {
-    getSSID();
-
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
-    try {
-      var response = await http.get('https://tmtest.artin.cz/data/main/user',
-          headers: {"cookie": cookie});
+    print(projects.length);
+    print(works.length);
 
-      userId = json.decode(response.body)['user']['id'];
+    print(projectNames.length);
+    print(workTypes.length);
 
-      var response3 = await http.get(
-          'https://tmtest.artin.cz/data/projects/most-frequent-and-assigned-of-user',
-          headers: {"cookie": cookie});
-
-      List availableProjects = json.decode(response3.body);
-
-      if(availableProjects.length > 0){
-        projectNames.clear();
-      }
-      for (int j = 0; j < availableProjects.length; j++) {
-        projects.add(new Project(
-            projectName: availableProjects[j]['name'],
-            projectId: availableProjects[j]['id']));
-        projectNames.add(availableProjects[j]['name']);
-      }
-
-      int id = projects[0].projectId;
-
-      var response2 = await http.get(
-          'https://tmtest.artin.cz/data/projects/$id/work-types',
-          headers: {"cookie": cookie});
-
+    /*setState((){
       if (sharedPreferences.getString("projectName") != "" &&
           sharedPreferences.getString("projectName") != null) {
         projectName = sharedPreferences.getString("projectName");
         _onChange(projectName);
-      } else {
-        projectName = projectNames.first;
       }
+    });*/
 
-      List workData = json.decode(response2.body);
+    /*projectName = projectNames.first;
+    workType = workTypes.first;*/
 
-      if(workData.length > 0){
-        workTypes.clear();
-      }
+    print(projectName);
+    print(workType);
 
-      for (int j = 0; j < workData.length; j++) {
-        workTypes.add(workData[j]['name'].toString());
-        works.add(new Project(
-            projectName: workData[j]['name'], projectId: workData[j]['id']));
-      }
-      if (workTypes.length != 0) {
-        workType = workTypes.first;
-      }
-    } catch (e) {}
+
+    //showToastMessage(cookie);
 
     setState(() {
       if (sharedPreferences.getString("timeFrom") != "" &&
@@ -227,6 +228,9 @@ class _WorkPageState extends State<WorkPage> {
         buttonState = manager.getWords(1);
         timeStarted = manager.getWords(3) +
             sharedPreferences.getString("timeFrom").substring(10, 16);
+        //showToastMessage(sharedPreferences.getString("timeFrom"));
+        //showToastMessage(workTypes.length.toString());
+        //showToastMessage(projectNames.length.toString());
         text = "";
       } else {
         timeStarted = "";
@@ -235,6 +239,7 @@ class _WorkPageState extends State<WorkPage> {
       }
       init = true;
     });
+    getSSID();
   }
 
   _saveTime(bool pressedByWifi) async {
@@ -273,12 +278,26 @@ class _WorkPageState extends State<WorkPage> {
 
     if (getMinutes(dateFrom) == 60) {
       print(dateFrom.substring(11, 13));
+      int adHour = (int.parse(dateFrom.substring(11, 13)) + 1);
+      String adHourStr = "";
+
+      if(adHour < 10){
+        adHourStr = "0" + adHour.toString();
+      }else{
+        adHourStr = adHour.toString();
+      }
 
       fDateFrom = dateFrom.substring(0, 10) +
           "T" +
-          (int.parse(dateFrom.substring(11, 13)) + 1).toString() +
+          adHourStr +
           ":00:00+02:00";
-    } else {
+    }else if(getMinutes(dateFrom) == 0){
+      fDateFrom = dateFrom.substring(0, 10) +
+          "T" +
+          dateFrom.substring(11, 14) +
+          "00" +
+          ":00+02:00";
+    }  else {
       fDateFrom = dateFrom.substring(0, 10) +
           "T" +
           dateFrom.substring(11, 14) +
@@ -286,7 +305,7 @@ class _WorkPageState extends State<WorkPage> {
           ":00+02:00";
     }
 
-    var dateTo;
+    String dateTo;
 
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     if (sharedPreferences.getString("timeTo") != "" &&
@@ -297,10 +316,25 @@ class _WorkPageState extends State<WorkPage> {
     }
 
     if (getMinutes(dateTo) == 60) {
+      int adHour =  (int.parse(dateTo.substring(11, 13)) + 1);
+      String adHourStr = "";
+
+      if(adHour < 10){
+        adHourStr = "0"+adHour.toString();
+      }else{
+        adHourStr = adHour.toString();
+      }
+
       fDateTo = dateTo.substring(0, 10) +
           "T" +
-          (int.parse(dateTo.substring(11, 13)) + 1).toString() +
+          adHourStr +
           ":00:00+02:00";
+    }else if(getMinutes(dateTo) == 0){
+      fDateTo = dateTo.substring(0, 10) +
+          "T" +
+          dateTo.substring(11, 14) +
+          "00" +
+          ":00+02:00";
     } else {
       fDateTo = dateTo.substring(0, 10) +
           "T" +
@@ -321,7 +355,6 @@ class _WorkPageState extends State<WorkPage> {
     workData.add(getProjectId(projectName).toString());
     workData.add(fDateFrom);
     workData.add(fDateTo);
-
     print(fDateFrom);
     print(fDateTo);
     if (sharedPreferences.getInt("numberOfUnfinishedWorks") == null) {
@@ -329,28 +362,32 @@ class _WorkPageState extends State<WorkPage> {
     }
 
     print("SUM OF NUMBER");
+    print(fDateFrom.substring(11,13));
+    print(fDateTo.substring(14,16));
 
+    print(int.parse(fDateFrom.substring(11, 13)));
 
-    print(int.parse(fDateFrom.substring(14, 16)));
     print(int.parse(fDateTo.substring(14, 16)));
 
-    if (int.parse(fDateTo.substring(11, 13)) -
+   /* if (int.parse(fDateTo.substring(11, 13)) -
                 int.parse(fDateFrom.substring(11, 13)) >
             0 ||
         int.parse(fDateTo.substring(14, 16)) -
                 int.parse(fDateFrom.substring(14, 16)) >
-            0) {
-
-      sharedPreferences.setInt("numberOfUnfinishedWorks",
-          sharedPreferences.getInt("numberOfUnfinishedWorks") + 1);
-      String prefName = "unfinishedWork" +
-          sharedPreferences.getInt("numberOfUnfinishedWorks").toString();
-      sharedPreferences.setStringList(prefName, workData);
-      WifiState.instance.showNotification = true;
-
-     } else {
+            0) {*/
+      if(userId.toString() != null || getProjectId(projectName).toString() != null || getWorkId(projectName).toString() != null){
+        sharedPreferences.setInt("numberOfUnfinishedWorks",
+            sharedPreferences.getInt("numberOfUnfinishedWorks") + 1);
+        String prefName = "unfinishedWork" +
+            sharedPreferences.getInt("numberOfUnfinishedWorks").toString();
+        sharedPreferences.setStringList(prefName, workData);
+        WifiState.instance.showNotification = true;
+      }else{
+       showToastMessage("Error");
+      }
+    /* } else {
       showToastMessage("Work time must be longer than 10 min");
-    }
+    }*/
 
 
     setState(() {
@@ -659,12 +696,5 @@ class _WorkPageState extends State<WorkPage> {
   }
 }
 
-class Project {
-  String projectName;
-
-  int projectId;
-
-  Project({this.projectName, this.projectId});
-}
 
 //just to make it 666

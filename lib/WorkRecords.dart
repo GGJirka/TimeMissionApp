@@ -123,7 +123,7 @@ class _LoginState extends State<LoginStateful> {
       setState(() {
         adProjects.add(new ListItem(
             added: true,
-            project: "Waiting for upload",
+            project: manager.getWords(33),
             unfinished: false,
             uploadAll: true));
       });
@@ -134,6 +134,16 @@ class _LoginState extends State<LoginStateful> {
           print(prefName);
           List<String> unfinishedWorks = prefs.getStringList(prefName);
           setState(() {
+
+            print("----------");
+            print(unfinishedWorks[7]);
+            print(unfinishedWorks[8]);
+            print(unfinishedWorks[1]);
+            print(unfinishedWorks[3]);
+            print(unfinishedWorks[5]);
+            print(unfinishedWorks[4]);
+
+
             adProjects.add(new ListItem(
                 date: "3.0",
                 time: unfinishedWorks[7],
@@ -143,7 +153,7 @@ class _LoginState extends State<LoginStateful> {
                 workType: unfinishedWorks[3],
                 added: false,
                 unfinished: true,
-                projectId: int.parse(unfinishedWorks[2]),
+                projectId: 5,
                 workTypeId: int.parse(unfinishedWorks[5]),
                 userId: int.parse(unfinishedWorks[4])));
           });
@@ -177,9 +187,12 @@ class _LoginState extends State<LoginStateful> {
 
             List workData = json.decode(response2.body);
 
+            //May cause troubles
+
             for (int j = 0; j < workData.length; j++) {
               if (workData[j]['id'] == workId) {
                 work = workData[j]['name'];
+                //work = "konzultant";
               }
             }
 
@@ -314,9 +327,7 @@ class _LoginState extends State<LoginStateful> {
   void addAllWorks(description, comment) async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
-    for (int i = 0;
-    i < sharedPreferences.getInt("numberOfUnfinishedWorks");
-    i++) {
+    for (int i = 0; i < sharedPreferences.getInt("numberOfUnfinishedWorks"); i++) {
       addWork(description, comment, 1, true);
     }
   }
@@ -340,8 +351,14 @@ class _LoginState extends State<LoginStateful> {
       "jiraWorklogId": null
     };
 
+    print( projects[index].projectId);
+    print( projects[index].userId);
+    print( projects[index].workTypeId);
+    print( projects[index].time);
+    print( projects[index].timeTo);
+
     var response = await http.post("https://tmtest.artin.cz/data/work-records",
-        body: JSON.encode(data),
+        body: json.encode(data),
         headers: {
           "cookie": cookie,
           "Content-type": "application/json;charset=UTF-8"
@@ -367,16 +384,17 @@ class _LoginState extends State<LoginStateful> {
         preferences.getInt("numberOfUnfinishedWorks") - 1);
 
     if (response.statusCode == 200) {
-      showToastMessage(manager.getWords(28));
+      //showToastMessage(manager.getWords(28));
     } else {
       if (json.decode(response.body)['message'] != null) {
-        showToastMessage(json.decode(response.body)['message']);
+       // showToastMessage(json.decode(response.body)['message']);
+        print(json.decode(response.body)['message']);
       }
     }
   }
 
   upload(int index) async {
-    if (projects[index].unfinished != null) {
+    if  (projects[index].unfinished != null) {
       var connectivityResult = await (new Connectivity().checkConnectivity());
 
       if (connectivityResult == ConnectivityResult.wifi) {
@@ -391,6 +409,68 @@ class _LoginState extends State<LoginStateful> {
     key.currentState.showSnackBar(new SnackBar(
       content: new Text(message),
     ));
+  }
+
+  Future<Null> unfinishedTaskDialog(int index) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return showDialog<Null>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          title: new Text("Delete work record"),
+          content: new SingleChildScrollView(
+            child: new ListBody(
+              children: <Widget>[
+                new Text("Do you really wish to delete this work record?"),
+              ],
+            ),
+          ),
+
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text(
+                "No",
+                textScaleFactor: 1.1,
+                style: new TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+            new  FlatButton(
+              child: new Text(
+                "Yes",
+                textScaleFactor: 1.1,
+                style: new TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  projects.removeAt(index);
+
+                  if (preferences.getInt("numberOfUnfinishedWorks") == 1) {
+                    projects.removeAt(0);
+                    WifiState.instance.showNotification = false;
+                  }
+                });
+
+                for (int i = index;
+                i < preferences.getInt("numberOfUnfinishedWorks");
+                i++) {
+                  String prefName = "unfinishedWork" + i.toString();
+                  preferences.setStringList(prefName,
+                      preferences.getStringList("unfinishedWork" + (i + 1).toString()));
+                }
+                preferences.setInt("numberOfUnfinishedWorks",
+                    preferences.getInt("numberOfUnfinishedWorks") - 1);
+
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -410,6 +490,7 @@ class _LoginState extends State<LoginStateful> {
           final item = projects[index];
           if (!item.added) {
             return new GestureDetector(
+              onLongPress: (){unfinishedTaskDialog(index);},
                 child: new Card(
                     child: new Padding(
                       padding: new EdgeInsets.all(15.0),
@@ -518,7 +599,7 @@ class _LoginState extends State<LoginStateful> {
                       opacity: item.uploadAll == null ? 0.0 : 1.0,
                       child: new FlatButton(
                         child: new Text(
-                          "UPLOAD ALL",
+                          manager.getWords(34),
                           textScaleFactor: 1.0,
                           style: new TextStyle(
                               fontWeight: FontWeight.bold, color: Colors.blue),

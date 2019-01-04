@@ -96,6 +96,18 @@ class SettingsHomeState extends State<SettingsHome> {
 
     sharedPreferences.setBool("Tracking", wifiTracking);
     print(sharedPreferences.getBool("Tracking"));
+
+    if(wifiTracking == true) {
+      return showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return new AlertDialog(
+            content: new Text(manager.getWords(29)),
+          );
+        },
+      );
+    }
   }
 
   void changeState() {
@@ -106,6 +118,7 @@ class SettingsHomeState extends State<SettingsHome> {
     setState(() {
       _state = value;
     });
+
   }
 
   saveValue(int value) async {
@@ -295,7 +308,7 @@ class SettingsHomeState extends State<SettingsHome> {
                   return new Padding(
                     padding: EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 15.0),
                     child: new Text(
-                      "WiFi tracking",
+                      manager.getWords(35),
                       textScaleFactor: 1.1,
                       style: new TextStyle(
                         fontWeight: FontWeight.bold,
@@ -312,7 +325,7 @@ class SettingsHomeState extends State<SettingsHome> {
                         new Checkbox(value: wifiTracking, onChanged: (bool value){onChange(value);}),
                         new Padding(
                           padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 10.0),
-                          child: new Text("WiFi tracking"),
+                          child: new Text(manager.getWords(36)),
                         ),
                       ],
                     ),

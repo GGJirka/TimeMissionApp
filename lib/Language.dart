@@ -25,7 +25,7 @@ class LanguageManager {
 
     new Language(englishText: "Czech", czechText: "Čeština"),
 
-    new Language(englishText: "Description", czechText: "Poznámka"),
+    new Language(englishText: "Description", czechText: "Popis práce"),
     new Language(englishText: "Cancel", czechText: "Zrušit"),
     new Language(englishText: "Add", czechText: "Přidat"),
     new Language(englishText: "Skip", czechText: "Přeskočit"),
@@ -57,7 +57,12 @@ class LanguageManager {
         czechText: "Aby se projevila změna, musíte aplikaci restarovat"),
     new Language(englishText: "Change user", czechText: "Změnit uživatele"),
     new Language(englishText: "Upload", czechText: "Nahrát"),
-    new Language(englishText: "Comment", czechText: "poznámka"),
+    new Language(englishText: "Comment", czechText: "Poznámka"),
+
+    new Language(englishText: "Waiting for upload", czechText: "Připraveno k nahrání"),
+    new Language(englishText: "UPLOAD ALL", czechText: "NAHRÁT VŠECHNY"),
+    new Language(englishText: "WiFi Tracking", czechText: "Trackování WiFi"),
+    new Language(englishText: "Enable WiFi Tracking", czechText: "Povolit trackovaní WiFi")
   ];
 
   LanguageManager({this.sharedPreferences});
