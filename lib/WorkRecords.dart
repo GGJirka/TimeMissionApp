@@ -72,11 +72,15 @@ class _LoginState extends State<LoginStateful> {
 
   @override
   void initState() {
-    initUser();
+    try {
+      initUser();
+    }catch(e){
+      showToastMessage(e);
+    }
     super.initState();
   }
 
-  initUser() async {
+  initUser() async{
     setState(() {
       projects.add(new ListItem(added: true, unfinished: true));
     });
@@ -127,7 +131,7 @@ class _LoginState extends State<LoginStateful> {
             unfinished: false,
             uploadAll: true));
       });
-
+      showToastMessage("number of works: " + prefs.getInt("numberOfUnfinishedWorks").toString());
       for (int i = 1; i < prefs.getInt("numberOfUnfinishedWorks") + 1; i++) {
         String prefName = "unfinishedWork" + i.toString();
         if (prefs.getStringList(prefName) != null) {
@@ -190,8 +194,11 @@ class _LoginState extends State<LoginStateful> {
             //May cause troubles
             for (int j = 0; j < workData.length; j++) {
               if (workData[j]['id'] == workId) {
-                //work = workData[j]['name'];
-                //work = "konzultant";
+                if(workData[j]['name'] != null) {
+                  work = workData[j]['name'];
+                }else{
+                  work = "error";
+                }
               }
             }
 
@@ -223,7 +230,7 @@ class _LoginState extends State<LoginStateful> {
         }
       }
     } catch (e) {
-      print(e);
+      showToastMessage(e);
     }
 
     setState(() {
@@ -300,8 +307,10 @@ class _LoginState extends State<LoginStateful> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                addWork(descriptionController.text, commentController.text,
-                    index, false);
+
+                index == 0
+                    ? addAllWorks(descriptionController.text, commentController.text)
+                    : addWork("", "", index, false);
               },
             ),
             new FlatButton(
@@ -383,10 +392,10 @@ class _LoginState extends State<LoginStateful> {
         preferences.getInt("numberOfUnfinishedWorks") - 1);
 
     if (response.statusCode == 200) {
-      //showToastMessage(manager.getWords(28));
+      showToastMessage(manager.getWords(28));
     } else {
       if (json.decode(response.body)['message'] != null) {
-       // showToastMessage(json.decode(response.body)['message']);
+        showToastMessage(json.decode(response.body)['message']);
         print(json.decode(response.body)['message']);
       }
     }

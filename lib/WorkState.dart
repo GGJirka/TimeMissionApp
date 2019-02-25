@@ -369,12 +369,12 @@ class _WorkPageState extends State<WorkPage> {
 
     print(int.parse(fDateTo.substring(14, 16)));
 
-   /* if (int.parse(fDateTo.substring(11, 13)) -
+    if (int.parse(fDateTo.substring(11, 13)) -
                 int.parse(fDateFrom.substring(11, 13)) >
             0 ||
         int.parse(fDateTo.substring(14, 16)) -
                 int.parse(fDateFrom.substring(14, 16)) >
-            0) {*/
+            0) {
       if(userId.toString() != null || getProjectId(projectName).toString() != null || getWorkId(projectName).toString() != null){
         sharedPreferences.setInt("numberOfUnfinishedWorks",
             sharedPreferences.getInt("numberOfUnfinishedWorks") + 1);
@@ -385,9 +385,9 @@ class _WorkPageState extends State<WorkPage> {
       }else{
        showToastMessage("Error");
       }
-    /* } else {
+     } else {
       showToastMessage("Work time must be longer than 10 min");
-    }*/
+    }
 
 
     setState(() {
@@ -439,11 +439,13 @@ class _WorkPageState extends State<WorkPage> {
       String SSID;
       try {
         SSID = await platform.invokeMethod("getSSID");
+        print(SSID);
+        //showToastMessage(SSID);
         var state = WifiState.instance.STATE;
         
         switch (state) {
           case "LISTEN":
-            if (SSID == '"artin_unifi_guest"') {
+            if (SSID == '"artin_unifi_guest"' || SSID == '"Jimmy"') {
               WifiState.instance.STATE = "INITIALIZE";
             }
             break;

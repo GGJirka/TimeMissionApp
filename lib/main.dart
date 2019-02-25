@@ -79,6 +79,8 @@ class _MyHomePageState extends State<MyHomePage> {
   /*CHECKS IF USER IS ALREADY LOGGED IN*/
   getPreferences() async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    print(sharedPreferences.getString("username"));
+    print(sharedPreferences.getString("password"));
 
     if (sharedPreferences.getInt("numberOfUnfinishedWorks") != null) {
       if (sharedPreferences.getInt("numberOfUnfinishedWorks") > 0) {
@@ -117,6 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     var sharedCookie = sharedPreferences.getString("cookie");
 
+    print("cookie is: ");
     print(sharedCookie);
 
     var connectivityResult = await (new Connectivity().checkConnectivity());
